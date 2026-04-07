@@ -39,7 +39,12 @@ class SelectDialog(
         onCancel {
             resume()
         }
-        show()
+        val dialog = show()
+        // 让对话框尽可能大，方便浏览文件树
+        dialog.window?.setLayout(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            (context.resources.displayMetrics.heightPixels * 0.75).toInt()
+        )
     }
 
 }

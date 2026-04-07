@@ -52,16 +52,19 @@ class MySigner(private val context: Context) {
 
     fun start(
         input: String, output: String,
-        useV4Sign: Boolean
+        v1: Boolean = true,
+        v2: Boolean = true,
+        v3: Boolean = true,
+        v4: Boolean = false
     ) {
         if (!keyFile.exists()) initKey()
         ApkSignerTool.main(
             arrayOf(
                 "sign", "--verbose",
-                "--v1-signing-enabled", "true",
-                "--v2-signing-enabled", "true",
-                "--v3-signing-enabled", "true",
-                "--v4-signing-enabled", useV4Sign.toString(),
+                "--v1-signing-enabled", v1.toString(),
+                "--v2-signing-enabled", v2.toString(),
+                "--v3-signing-enabled", v3.toString(),
+                "--v4-signing-enabled", v4.toString(),
                 "--v1-signer-name", "XCERT",
                 "--ks", keyFile.absolutePath,
                 "--ks-pass", "pass:$storePass",

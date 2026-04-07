@@ -136,10 +136,14 @@ class AppProcessFragment : ProviderFragment() {
                         }
                         apkEditor.build(tempFile.absolutePath)
                         apkEditor.logCallback("Signing APK")
+                        val useV4 = binding.chipV4.isChecked
                         MySigner(requireContext()).start(
                             tempFile.absolutePath,
                             resultFile.absolutePath,
-                            binding.v4Switch.isChecked,
+                            v1 = binding.chipV1.isChecked,
+                            v2 = binding.chipV2.isChecked,
+                            v3 = binding.chipV3.isChecked,
+                            v4 = useV4,
                         )
                         apkEditor.logCallback("Moving APK")
                         // 将打包的 apk 复制到 builds 目录
@@ -151,7 +155,7 @@ class AppProcessFragment : ProviderFragment() {
                             delete()
                         }
                         // 如果开启了V4签名，则复制签名文件
-                        if (binding.v4Switch.isChecked) {
+                        if (useV4) {
                             apkEditor.logCallback("Moving V4 Signature")
                             baseApkDir.resolve("$apkName.idsig").apply {
                                 copyTo(

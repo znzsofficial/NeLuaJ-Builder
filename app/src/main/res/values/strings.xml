@@ -45,7 +45,11 @@
     <string name="category_compile">Compilation</string>
     <string name="category_compile_desc">Pre-compile Lua scripts and manage DEX classes</string>
     <string name="category_signing">Signing</string>
-    <string name="category_signing_desc">APK signature scheme configuration</string>
+    <string name="category_signing_desc">Select which signature schemes to apply</string>
+    <string name="category_output">Output</string>
+    <string name="category_output_desc">APK optimization and cleanup options</string>
+    <string name="zipalign">ZipAlign optimization</string>
+    <string name="clear_meta">Remove old signatures (META-INF)</string>
     <string name="save_to">Saved to:</string>
     <string name="install">Install</string>
     <string name="build_success">Build Success</string>

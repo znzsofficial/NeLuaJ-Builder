@@ -59,7 +59,11 @@
     <string name="category_compile">编译选项</string>
     <string name="category_compile_desc">预编译 Lua 脚本和管理 DEX 类</string>
     <string name="category_signing">签名</string>
-    <string name="category_signing_desc">APK 签名方案配置</string>
+    <string name="category_signing_desc">选择要应用的签名方案</string>
+    <string name="category_output">输出选项</string>
+    <string name="category_output_desc">APK 优化和清理选项</string>
+    <string name="zipalign">ZipAlign 对齐优化</string>
+    <string name="clear_meta">清除旧签名 (META-INF)</string>
     <!-- 签名配置 -->
     <string name="sign_config">签名配置</string>
     <string name="sign_alias">密钥别名</string>
