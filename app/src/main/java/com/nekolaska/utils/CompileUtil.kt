@@ -5,32 +5,31 @@ import org.luaj.compiler.DumpState
 import org.luaj.lib.jse.JsePlatform
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 
 object CompileUtil {
-    val mGlobals = JsePlatform.standardGlobals()
+    private val globals by lazy { JsePlatform.standardGlobals() }
 
-    private fun getByteArray(path: File): ByteArray {
-        val closure = mGlobals.loadfile(path.absolutePath).checkfunction(1) as LuaClosure
-        val stream = ByteArrayOutputStream()
-        return try {
+    private fun compile(file: File): ByteArray {
+        val closure = globals.loadfile(file.absolutePath).checkfunction(1) as LuaClosure
+        return ByteArrayOutputStream().use { stream ->
             DumpState.dump(closure.c, stream, true)
             stream.toByteArray()
-        } catch (e: Exception) {
-            throw e
         }
     }
 
+    /**
+     * 将 .lua 文件编译为字节码并原地替换。
+     * 使用临时文件写入，成功后再替换原文件，避免编译失败时丢失源文件。
+     */
     fun dump(input: File) {
+        val bytecode = compile(input)
+        val tempFile = File(input.parent, "${input.name}.tmp")
         try {
-            val output = File(input.absolutePath.replace(".lua", ".luac"))
-            val fos = FileOutputStream(output)
-            fos.write(getByteArray(input))
-            fos.close()
+            tempFile.writeBytes(bytecode)
             input.delete()
-            output.renameTo(input)
-        } catch (e: IOException) {
+            tempFile.renameTo(input)
+        } catch (e: Exception) {
+            tempFile.delete() // 清理临时文件
             throw e
         }
     }

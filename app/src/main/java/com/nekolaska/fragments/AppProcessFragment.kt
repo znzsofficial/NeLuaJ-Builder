@@ -90,9 +90,15 @@ class AppProcessFragment : ProviderFragment() {
             if (copyBaseApk(baseApkDir)) {
                 dialog.show()
                 val baseApkFile = baseApkDir.getChild("base.apk")!!
+                var currentStep = ""
                 lifecycleScope.launch(CoroutineExceptionHandler { _, e ->
                     dialog.dismiss()
-                    context?.alertDialog("Error", e.stackTraceToString()) {
+                    val errorMsg = buildString {
+                        appendLine("Failed at: $currentStep")
+                        appendLine()
+                        append(e.stackTraceToString())
+                    }
+                    context?.alertDialog("Build Error", errorMsg) {
                         setPositiveButton(android.R.string.ok, null)
                     }
                 }) {
@@ -102,10 +108,10 @@ class AppProcessFragment : ProviderFragment() {
                     val apkName = "${config.appName}_${config.versionName}.apk"
                     val tempFile = baseApkDir.resolve("temp.apk")
                     val resultFile = baseApkDir.resolve(apkName)
-                    // 反编译相关
                     val deDex = binding.deDexSwitch.isChecked
                     val smaliDir = apkEditor.cacheDir.resolve("smali")
                     withContext(Dispatchers.IO) {
+                        currentStep = "Decode"
                         apkEditor.decode(
                             apkInputPath = baseApkFile.path,
                             oldPackage = baseApkPackage,
@@ -118,15 +124,11 @@ class AppProcessFragment : ProviderFragment() {
                             keepWService = binding.keepWservice.isChecked,
                             deDex = deDex
                         )
-                        if (deDex && smaliDir.exists()) withContext(
-                            Dispatchers.Main
-                        ) {
+                        if (deDex && smaliDir.exists()) withContext(Dispatchers.Main) {
                             suspendCoroutine { continuation ->
                                 SelectDialog(
                                     requireContext(), smaliDir,
-                                    {
-                                        continuation.resume(Unit)
-                                    }
+                                    { continuation.resume(Unit) }
                                 ) {
                                     it.getAllCheckedItems().forEach { node ->
                                         node.file.delete()
@@ -134,8 +136,12 @@ class AppProcessFragment : ProviderFragment() {
                                 }
                             }
                         }
+
+                        currentStep = "Build"
                         apkEditor.build(tempFile.absolutePath)
-                        apkEditor.logCallback("Signing APK")
+
+                        currentStep = "Sign"
+                        apkEditor.logCallback("Signing APK...")
                         val useV4 = binding.chipV4.isChecked
                         MySigner(requireContext()).start(
                             tempFile.absolutePath,
@@ -145,30 +151,24 @@ class AppProcessFragment : ProviderFragment() {
                             v3 = binding.chipV3.isChecked,
                             v4 = useV4,
                         )
-                        apkEditor.logCallback("Moving APK")
-                        // 将打包的 apk 复制到 builds 目录
+
+                        currentStep = "Export"
+                        apkEditor.logCallback("Exporting APK...")
                         resultFile.apply {
-                            copyTo(
-                                buildsDir.resolve(apkName),
-                                overwrite = true
-                            )
+                            copyTo(buildsDir.resolve(apkName), overwrite = true)
                             delete()
                         }
-                        // 如果开启了V4签名，则复制签名文件
                         if (useV4) {
-                            apkEditor.logCallback("Moving V4 Signature")
                             baseApkDir.resolve("$apkName.idsig").apply {
-                                copyTo(
-                                    buildsDir.resolve("$apkName.idsig"),
-                                    overwrite = true
-                                )
-                                delete()
+                                if (exists()) {
+                                    copyTo(buildsDir.resolve("$apkName.idsig"), overwrite = true)
+                                    delete()
+                                }
                             }
                         }
-                        apkEditor.logCallback("Cleaning")
-                        // 删除中间文件
+
+                        apkEditor.logCallback("Cleaning up...")
                         tempFile.delete()
-                        // 删除 base.apk
                         baseApkFile.delete()
                     }
                     dialog.dismiss()
