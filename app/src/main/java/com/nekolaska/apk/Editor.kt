@@ -25,25 +25,25 @@ class Editor(context: Context, val logCallback: LogCallback) {
 
     /**
      * 检查反编译缓存是否可用。
-     * 通过记录源 APK 的大小和最后修改时间来判断缓存是否有效。
+     * 通过记录源 APK 的路径和大小来判断缓存是否有效。
      */
-    private fun isDecompileCacheValid(apkFile: File, deDex: Boolean): Boolean {
+    private fun isDecompileCacheValid(sourceApkPath: String, apkSize: Long, deDex: Boolean): Boolean {
         val marker = decompileCache.resolve(".cache_marker")
         if (!marker.exists() || !decompileCache.resolve("AndroidManifest.xml").exists()) return false
         return runCatching {
             val lines = marker.readLines()
-            val cachedSize = lines[0].toLong()
-            val cachedModified = lines[1].toLong()
+            val cachedPath = lines[0]
+            val cachedSize = lines[1].toLong()
             val cachedDeDex = lines[2].toBoolean()
-            apkFile.length() == cachedSize
-                    && apkFile.lastModified() == cachedModified
+            sourceApkPath == cachedPath
+                    && apkSize == cachedSize
                     && deDex == cachedDeDex
         }.getOrDefault(false)
     }
 
-    private fun writeDecompileCacheMarker(apkFile: File, deDex: Boolean) {
+    private fun writeDecompileCacheMarker(sourceApkPath: String, apkSize: Long, deDex: Boolean) {
         decompileCache.resolve(".cache_marker").writeText(
-            "${apkFile.length()}\n${apkFile.lastModified()}\n$deDex"
+            "$sourceApkPath\n$apkSize\n$deDex"
         )
     }
 
@@ -62,9 +62,12 @@ class Editor(context: Context, val logCallback: LogCallback) {
         deDex: Boolean
     ) {
         val apkFile = File(apkInputPath)
+        // 使用源 APK 的原始路径和大小作为缓存 key，避免复制后 lastModified 变化导致缓存失效
+        val sourceApkPath = apkInputPath
+        val apkSize = apkFile.length()
 
         // 检查反编译缓存：如果基础 APK 没变且 deDex 选项一致，直接复用缓存
-        if (isDecompileCacheValid(apkFile, deDex)) {
+        if (isDecompileCacheValid(sourceApkPath, apkSize, deDex)) {
             logCallback("Restoring from cache...")
             decompileCache.copyRecursively(cacheDir, overwrite = true)
         } else {
@@ -77,7 +80,7 @@ class Editor(context: Context, val logCallback: LogCallback) {
             logCallback("Caching decompiled result...")
             if (decompileCache.exists()) decompileCache.deleteRecursively()
             cacheDir.copyRecursively(decompileCache, overwrite = true)
-            writeDecompileCacheMarker(apkFile, deDex)
+            writeDecompileCacheMarker(sourceApkPath, apkSize, deDex)
         }
 
         logCallback("Modifying package name...")

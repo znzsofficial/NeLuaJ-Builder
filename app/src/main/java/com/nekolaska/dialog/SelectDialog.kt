@@ -24,16 +24,6 @@ class SelectDialog(
         node.isExpanded = true
         binding.tree.setRoots(listOf(node))
 
-        var allSelected = false
-        binding.btnSelectAll.setOnClickListener {
-            allSelected = !allSelected
-            node.setChecked(allSelected)
-            binding.tree.setRoots(listOf(node)) // 刷新显示
-            binding.btnSelectAll.setText(
-                if (allSelected) R.string.deselect_all else R.string.select_all
-            )
-        }
-
         val dialog = MaterialAlertDialogBuilder(context)
             .setTitle(context.getString(R.string.select_file))
             .setView(binding.root)

@@ -51,22 +51,13 @@ class CrashHandler : Thread.UncaughtExceptionHandler {
      * 当UncaughtException发生时会转入该函数来处理
      */
     override fun uncaughtException(thread: Thread, ex: Throwable) {
-        if (!handleException(ex) && mDefaultHandler != null) {
-            //如果用户没有处理则让系统默认的异常处理器来处理
-            mDefaultHandler!!.uncaughtException(thread, ex)
-        } else {
-            /*try
-			{
-				Thread.sleep(3000);
-			}
-			catch (InterruptedException e)
-			{
-				Log.e(TAG, "error : ", e);
-			}
-			//退出程序
-			android.os.Process.killProcess(android.os.Process.myPid());
-			System.exit(0);*/
-        }
+        handleException(ex)
+        // 始终交给系统默认处理器，确保应用正常崩溃退出（而非白屏卡死）
+        mDefaultHandler?.uncaughtException(thread, ex)
+            ?: run {
+                android.os.Process.killProcess(android.os.Process.myPid())
+                kotlin.system.exitProcess(1)
+            }
     }
 
     /**

@@ -36,8 +36,15 @@ class CheckableTreeView<T : Checkable> : RecyclerView, CheckableTree<T> {
     @UiThread
     override fun setRoots(roots: List<TreeNode<T>>) = adapter.run {
         nodes.clear()
-        nodes.addAll(roots)
+        roots.forEach { addNodeRecursive(it) }
         notifyDataSetChanged()
+    }
+
+    private fun TreeAdapter<T>.addNodeRecursive(node: TreeNode<T>) {
+        nodes.add(node)
+        if (node.isExpanded) {
+            node.getChildren().forEach { addNodeRecursive(it) }
+        }
     }
 
 }
