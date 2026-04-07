@@ -1,0 +1,33 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Backup files
+*.bak
+
+# APK files
+*.apk
+*.ap_
+
+# Signing
+*.jks
+*.keystore
+
+# Logs
+*.log
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+._*
+
+# Release output
+/app/release/
