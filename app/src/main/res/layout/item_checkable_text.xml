@@ -4,8 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
-    android:paddingVertical="6dp">
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="0dp"
+    android:minHeight="36dp">
 
     <Space
         android:id="@+id/indentation"
