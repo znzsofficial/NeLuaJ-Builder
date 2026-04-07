@@ -1,28 +1,14 @@
 ﻿package com.nekolaska.apk
 
 object ManifestReplacer2 {
-    fun removeService(manifestContent: String,serviceNameToRemove: String): String {
-        // 使用多行字符串来提高可读性，并使用 trimIndent() 来清除前导空格
-        val patternString = """
-            \s*
-            <service
-            [^>]*?
-            android:name\s*=\s*["']\Q$serviceNameToRemove\E["']
-            [^>]*?
-            >
-            .*?
-            </service>
-            \s*
-        """.trimIndent()
-
-        // 直接使用 Regex 构造函数，并传递选项集
+    fun removeService(manifestContent: String, serviceNameToRemove: String): String {
+        // 匹配 <service android:name="xxx">...</service> 整个块（含前后空白行）
+        val escapedName = Regex.escape(serviceNameToRemove)
         val serviceRegex = Regex(
-            patternString,
-            setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.COMMENTS)
+            """\s*<service[^>]*?android:name\s*=\s*["']$escapedName["'][^>]*?>.*?</service>\s*""",
+            setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)
         )
-
-        // 使用 replace 函数将匹配到的整个块替换为空字符串，从而实现删除
-        return serviceRegex.replace(manifestContent, "")
+        return serviceRegex.replace(manifestContent, "\n")
     }
 
     private fun replaceAttributeValue(
@@ -169,19 +155,14 @@ object ManifestReplacer2 {
     }
 
     fun clearAndroidPermissions(manifestContent: String): String {
-        // 定义正则表达式，仅用于匹配以 "android.permission." 开头的标准 Android 权限
-        // 确保正确处理属性值中的点号，并匹配自闭合标签
-        val permissionRegex = Regex(
-            """\s*<uses-permission\s+android:name\s*=\s*["']android\.permission\.\w+[^>]*?/>\s*""",
+        // 逐行过滤，只移除 android.permission.* 的 uses-permission 行，保留其他行的原始缩进
+        val permissionLineRegex = Regex(
+            """^\s*<uses-permission\s+android:name\s*=\s*["']android\.permission\.\w+.*?/>\s*$""",
             RegexOption.IGNORE_CASE
         )
-        return manifestContent
-            .replace(permissionRegex, "\n") // 替换为换行符，以便在过滤前帮助保留结构
-            .lineSequence()
-            .map { it.trim() } // 去除行首尾空格
-            .filter { it.isNotBlank() } // 移除空行
-            // 对剩余行进行基础的重新缩进尝试
-            .joinToString("\n") { if (it.startsWith("<") || it.startsWith("</")) it else "    $it" }
+        return manifestContent.lineSequence()
+            .filter { !permissionLineRegex.matches(it) }
+            .joinToString("\n")
     }
 
 

@@ -9,7 +9,7 @@ import com.nekolaska.Builder.databinding.DialogProcessBinding
 import androidx.core.graphics.drawable.toDrawable
 
 class AppProcessDialog(context: Context) : Dialog(context) {
-    val binding = DialogProcessBinding.inflate(layoutInflater).apply {
+    private val binding = DialogProcessBinding.inflate(layoutInflater).apply {
         setContentView(root)
         setCancelable(false)
         setCanceledOnTouchOutside(false)
@@ -18,9 +18,11 @@ class AppProcessDialog(context: Context) : Dialog(context) {
     init {
         window?.apply {
             setBackgroundDrawable(TRANSPARENT.toDrawable())
-            attributes?.width = (context.resources.displayMetrics.widthPixels * 0.8f).toInt()
+            setLayout(
+                android.view.WindowManager.LayoutParams.WRAP_CONTENT,
+                android.view.WindowManager.LayoutParams.WRAP_CONTENT
+            )
         }
-        binding.dialogText.isVisible = true
     }
 
     fun setMessage(message: String) {
