@@ -37,6 +37,8 @@
     <string name="keep_icon_png">Keep icon.png in assets</string>
     <string name="keep_wallpaper_service">Wallpaper Service</string>
     <string name="keep_accessibility_service">Accessibility Service</string>
+    <string name="keep_lua_service">Lua Foreground Service</string>
+    <string name="keep_notification_service">Notification Listener</string>
     <string name="delete_class">Select and remove Java classes</string>
     <string name="category_assets">Assets</string>
     <string name="category_assets_desc">Configure which resources to keep in the output APK</string>

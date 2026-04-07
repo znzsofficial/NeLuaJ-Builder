@@ -234,10 +234,12 @@ object ManifestReplacer2 {
         isDebug: Boolean,
         keepWallpaperService: Boolean,
         keepAccessibilityService: Boolean,
+        keepLuaService: Boolean,
+        keepNotificationService: Boolean,
         newLabel: String,
         newLabelReplaced: Boolean,
-        newPackage: String, // 新的应用包名，用于 <manifest package="..."> 和 authorities 前缀
-        oldPackage: String  // 旧的应用包名，用于在 android:name 属性中查找并替换
+        newPackage: String,
+        oldPackage: String
     ): String {
         var str = manifestContent
 
@@ -269,9 +271,13 @@ object ManifestReplacer2 {
         if (isDebug)
             str = addDebuggable(str)
         if (!keepWallpaperService)
-            str = removeService(str,"com.androlua.LuaWallpaperService")
+            str = removeService(str, "com.androlua.LuaWallpaperService")
         if (!keepAccessibilityService)
-            str = removeService(str,"com.androlua.LuaAccessibilityService")
+            str = removeService(str, "com.androlua.LuaAccessibilityService")
+        if (!keepLuaService)
+            str = removeService(str, "com.androlua.LuaService")
+        if (!keepNotificationService)
+            str = removeService(str, "com.androlua.LuaNotificationListenerService")
         return str
     }
 }

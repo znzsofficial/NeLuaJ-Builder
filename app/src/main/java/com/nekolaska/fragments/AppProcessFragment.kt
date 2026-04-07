@@ -122,6 +122,8 @@ class AppProcessFragment : ProviderFragment() {
                             keepOpt = binding.keepOpt.isChecked,
                             keepAService = binding.keepAservice.isChecked,
                             keepWService = binding.keepWservice.isChecked,
+                            keepLuaService = binding.keepLuaService.isChecked,
+                            keepNotificationService = binding.keepNotificationService.isChecked,
                             deDex = deDex
                         )
                         if (deDex && smaliDir.exists()) withContext(Dispatchers.Main) {

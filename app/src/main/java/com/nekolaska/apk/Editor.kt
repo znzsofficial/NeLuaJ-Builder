@@ -57,6 +57,8 @@ class Editor(context: Context, val logCallback: LogCallback) {
         keepOpt: Boolean,
         keepWService: Boolean,
         keepAService: Boolean,
+        keepLuaService: Boolean,
+        keepNotificationService: Boolean,
         deDex: Boolean
     ) {
         val apkFile = File(apkInputPath)
@@ -103,6 +105,8 @@ class Editor(context: Context, val logCallback: LogCallback) {
                 config.debuggable,
                 keepWService,
                 keepAService,
+                keepLuaService,
+                keepNotificationService,
                 config.appName,
                 replaced,
                 config.packageName,

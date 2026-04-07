@@ -36,6 +36,8 @@
     <string name="keep_icon_png">在 assets 中保留 icon.png</string>
     <string name="keep_wallpaper_service">壁纸服务</string>
     <string name="keep_accessibility_service">无障碍服务</string>
+    <string name="keep_lua_service">Lua 前台服务</string>
+    <string name="keep_notification_service">通知监听服务</string>
     <string name="delete_class">选择并移除 Java 类</string>
     <string name="save_to">已保存到：</string>
     <string name="install">安装</string>

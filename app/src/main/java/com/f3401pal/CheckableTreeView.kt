@@ -6,6 +6,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.annotation.UiThread
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -53,8 +54,7 @@ class TreeAdapter<T : Checkable>(private val indentation: Int) :
             } else {
                 expand(viewHolder.bindingAdapterPosition)
             }
-            viewHolder.itemView.findViewById<ExpandToggleButton>(R.id.expandIndicator)
-                .startToggleAnimation(node.isExpanded)
+            viewHolder.updateExpandIcon(node)
         }
 
     init {
@@ -116,10 +116,20 @@ class TreeAdapter<T : Checkable>(private val indentation: Int) :
     inner class ViewHolder(view: View, private val indentation: Int) :
         RecyclerView.ViewHolder(view) {
 
+        private val expandIndicator: ImageView = itemView.findViewById(R.id.expandIndicator)
+
+        internal fun updateExpandIcon(node: TreeNode<T>) {
+            if (node.isLeaf()) {
+                expandIndicator.setImageResource(0)
+            } else {
+                expandIndicator.setImageResource(R.drawable.ic_expand_collapse_toggle)
+                expandIndicator.rotation = if (node.isExpanded) 90f else 0f
+            }
+        }
+
         internal fun bind(node: TreeNode<T>) {
             val indentationView = itemView.findViewById<View>(R.id.indentation)
             val checkText = itemView.findViewById<CheckBoxEx>(R.id.checkText)
-            val expandIndicator = itemView.findViewById<ExpandToggleButton>(R.id.expandIndicator)
 
             indentationView.minimumWidth = indentation * node.getLevel()
 
@@ -133,16 +143,19 @@ class TreeAdapter<T : Checkable>(private val indentation: Int) :
                 notifyDataSetChanged()
             }
 
-            if (node.isLeaf()) {
-                expandIndicator.visibility = View.GONE
-            } else {
-                expandIndicator.visibility = View.VISIBLE
+            updateExpandIcon(node)
+
+            // 点击整行（非 checkbox 区域）展开/折叠
+            if (!node.isLeaf()) {
                 expandIndicator.setOnClickListener {
-                    expandCollapseToggleHandler(
-                        node,
-                        this
-                    )
+                    expandCollapseToggleHandler(node, this)
                 }
+                itemView.setOnClickListener {
+                    expandCollapseToggleHandler(node, this)
+                }
+            } else {
+                expandIndicator.setOnClickListener(null)
+                itemView.setOnClickListener(null)
             }
         }
 

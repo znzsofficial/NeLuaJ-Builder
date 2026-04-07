@@ -116,6 +116,22 @@
                         android:minHeight="48dp"
                         android:text="@string/keep_accessibility_service" />
 
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/keep_lua_service"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:minHeight="48dp"
+                        android:text="@string/keep_lua_service" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/keep_notification_service"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        android:minHeight="48dp"
+                        android:text="@string/keep_notification_service" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

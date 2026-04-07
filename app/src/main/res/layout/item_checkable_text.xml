@@ -4,30 +4,33 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="0dp"
-    android:minHeight="36dp">
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="4dp"
+    android:minHeight="40dp">
 
     <Space
         android:id="@+id/indentation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
+    <ImageView
+        android:id="@+id/expandIndicator"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:scaleType="centerInside"
+        android:contentDescription="@null" />
+
     <com.f3401pal.CheckBoxEx
         android:id="@+id/checkText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
         android:layout_weight="1"
         android:maxLines="1"
-        android:paddingStart="8dp"
+        android:ellipsize="middle"
+        android:paddingStart="4dp"
         android:paddingEnd="8dp"
+        android:textSize="13sp"
         tools:text="Text" />
-
-    <com.f3401pal.ExpandToggleButton
-        android:id="@+id/expandIndicator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical" />
 
 </LinearLayout>
