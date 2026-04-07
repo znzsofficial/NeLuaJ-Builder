@@ -5,19 +5,22 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingStart="12dp"
-    android:paddingEnd="4dp"
-    android:minHeight="40dp">
+    android:background="?attr/selectableItemBackground"
+    android:paddingStart="8dp"
+    android:paddingEnd="12dp"
+    android:minHeight="44dp">
 
     <Space
         android:id="@+id/indentation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
+    <!-- 展开/折叠箭头，叶子节点时隐藏但保留占位 -->
     <ImageView
         android:id="@+id/expandIndicator"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:padding="2dp"
         android:scaleType="centerInside"
         android:contentDescription="@null" />
 
@@ -27,10 +30,10 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:maxLines="1"
-        android:ellipsize="middle"
-        android:paddingStart="4dp"
-        android:paddingEnd="8dp"
-        android:textSize="13sp"
+        android:ellipsize="end"
+        android:paddingStart="2dp"
+        android:paddingEnd="4dp"
+        android:textSize="14sp"
         tools:text="Text" />
 
 </LinearLayout>

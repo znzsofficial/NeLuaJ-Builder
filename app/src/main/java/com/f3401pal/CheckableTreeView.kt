@@ -120,10 +120,21 @@ class TreeAdapter<T : Checkable>(private val indentation: Int) :
 
         internal fun updateExpandIcon(node: TreeNode<T>) {
             if (node.isLeaf()) {
-                expandIndicator.setImageResource(0)
+                // 叶子节点：隐藏箭头但保留占位，保持对齐
+                expandIndicator.visibility = View.INVISIBLE
             } else {
-                expandIndicator.setImageResource(R.drawable.ic_expand_collapse_toggle)
-                expandIndicator.rotation = if (node.isExpanded) 90f else 0f
+                expandIndicator.visibility = View.VISIBLE
+                expandIndicator.setImageResource(R.drawable.ic_chevron_right)
+                // 展开时箭头朝下（90°），折叠时朝右（0°），带动画
+                val targetRotation = if (node.isExpanded) 90f else 0f
+                if (expandIndicator.rotation != targetRotation) {
+                    expandIndicator.animate()
+                        .rotation(targetRotation)
+                        .setDuration(200)
+                        .start()
+                } else {
+                    expandIndicator.rotation = targetRotation
+                }
             }
         }
 
@@ -145,17 +156,19 @@ class TreeAdapter<T : Checkable>(private val indentation: Int) :
 
             updateExpandIcon(node)
 
-            // 点击整行（非 checkbox 区域）展开/折叠
+            // 非叶子节点：点击箭头或整行都可以展开/折叠
             if (!node.isLeaf()) {
-                expandIndicator.setOnClickListener {
+                val toggle = View.OnClickListener {
                     expandCollapseToggleHandler(node, this)
                 }
-                itemView.setOnClickListener {
-                    expandCollapseToggleHandler(node, this)
-                }
+                expandIndicator.setOnClickListener(toggle)
+                itemView.setOnClickListener(toggle)
             } else {
                 expandIndicator.setOnClickListener(null)
-                itemView.setOnClickListener(null)
+                // 叶子节点点击整行切换勾选
+                itemView.setOnClickListener {
+                    checkText.isChecked = !checkText.isChecked
+                }
             }
         }
 

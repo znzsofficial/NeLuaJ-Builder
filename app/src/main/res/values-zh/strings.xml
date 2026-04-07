@@ -53,6 +53,8 @@
     <string name="config_not_save_continue">不保存继续</string>
     <string name="decompile_suggest">此操作可能耗时较长。提示：打包完成后，可将输出 APK 设为基础应用，下次即可跳过此步骤</string>
     <string name="select_file">选择要移除的类</string>
+    <string name="select_all">全选</string>
+    <string name="deselect_all">取消全选</string>
     <!-- 构建页分组标题 -->
     <string name="category_assets">资源文件</string>
     <string name="category_assets_desc">配置输出APK中需要保留的资源</string>

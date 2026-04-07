@@ -18,10 +18,9 @@ class AppProcessDialog(context: Context) : Dialog(context) {
     init {
         window?.apply {
             setBackgroundDrawable(TRANSPARENT.toDrawable())
-            setLayout(
-                android.view.WindowManager.LayoutParams.WRAP_CONTENT,
-                android.view.WindowManager.LayoutParams.WRAP_CONTENT
-            )
+            // 固定窗口尺寸，防止文字变化时抖动
+            val width = (240 * context.resources.displayMetrics.density).toInt()
+            setLayout(width, android.view.WindowManager.LayoutParams.WRAP_CONTENT)
         }
     }
 

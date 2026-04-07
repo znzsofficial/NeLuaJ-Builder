@@ -66,6 +66,8 @@
     <string name="config_not_save_continue">Continue anyway</string>
     <string name="decompile_suggest">This may take a while. Tip: after building, set the output APK as the base app to skip this step next time.</string>
     <string name="select_file">Select classes to remove</string>
+    <string name="select_all">Select All</string>
+    <string name="deselect_all">Deselect All</string>
     <string name="sign_config">Signature Config</string>
     <string name="sign_alias">Key Alias</string>
     <string name="sign_key_pass">Key Password</string>
