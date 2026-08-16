@@ -18,8 +18,10 @@ package com.reandroid.apkeditor.info;
 import com.reandroid.archive.block.CertificateBlock;
 import com.reandroid.arsc.array.ResValueMapArray;
 import com.reandroid.arsc.chunk.PackageBlock;
+import com.reandroid.arsc.chunk.xml.ResXmlDocument;
 import com.reandroid.arsc.container.SpecTypePair;
 import com.reandroid.arsc.model.ResourceEntry;
+import com.reandroid.arsc.pool.StringPool;
 import com.reandroid.arsc.value.Entry;
 import com.reandroid.arsc.value.ResTableMapEntry;
 import com.reandroid.arsc.value.ResValue;
@@ -38,12 +40,35 @@ import java.util.List;
 
 public class InfoWriterJson extends InfoWriter{
     private final JSONWriter mJsonWriter;
+    private final JSONObject mJsonObject;
 
     public InfoWriterJson(Writer writer) {
         super(writer);
         JSONWriter jsonWriter = new JSONWriter(writer);
         jsonWriter = jsonWriter.array();
+        JSONObject jsonObject = new JSONObject();
         this.mJsonWriter = jsonWriter;
+        this.mJsonObject = jsonObject;
+    }
+
+    @Override
+    public void writeStringPool(String source, StringPool<?> stringPool) throws IOException {
+        JSONObject stringPoolObject = new JSONObject();
+        stringPoolObject.put("source", source);
+        stringPoolObject.put("count", stringPool.size());
+        stringPoolObject.put("styles", stringPool.countStyles());
+        stringPoolObject.put("sorted", stringPool.getHeaderBlock().isSorted());
+        stringPoolObject.put("utf8", stringPool.isUtf8());
+        stringPoolObject.put("bytes", stringPool.getHeaderBlock().getChunkSize());
+        stringPoolObject.put("strings", stringPool.toJson());
+        mJsonObject.put("string_pool", stringPoolObject);
+    }
+    @Override
+    public void writeXmlDocument(String sourcePath, ResXmlDocument xmlDocument) throws IOException {
+        JSONWriter jsonWriter = mJsonWriter.object();
+        jsonWriter.key("source_path").value(sourcePath);
+        jsonWriter.key("document").value(xmlDocument.toJson());
+        jsonWriter.endObject();
     }
 
     @Override
@@ -164,7 +189,7 @@ public class InfoWriterJson extends InfoWriter{
     }
     @Override
     public void writePackageNames(Collection<PackageBlock> packageBlocks) throws IOException {
-        if(packageBlocks == null || packageBlocks.isEmpty()){
+        if(packageBlocks == null || packageBlocks.size() == 0){
             return;
         }
         JSONWriter jsonWriter = mJsonWriter.object()
@@ -181,7 +206,7 @@ public class InfoWriterJson extends InfoWriter{
     }
     @Override
     public void writeEntries(String name, List<Entry> entryList) throws IOException {
-        if(entryList == null || entryList.isEmpty()){
+        if(entryList == null || entryList.size() == 0){
             return;
         }
         Entry first = entryList.get(0);
@@ -214,15 +239,16 @@ public class InfoWriterJson extends InfoWriter{
     }
     @Override
     public void writeNameValue(String name, Object value) throws IOException {
-        mJsonWriter.object()
-                .key(name)
-                .value(value)
-                .endObject();
+        mJsonObject.put(name, value);
         getWriter().flush();
     }
+
     @Override
     public void flush() throws IOException {
         Writer writer = getWriter();
+        if (!mJsonObject.isEmpty()) {
+            mJsonWriter.value(mJsonObject);
+        }
         mJsonWriter.endArray();
         writer.write("\n");
         writer.flush();

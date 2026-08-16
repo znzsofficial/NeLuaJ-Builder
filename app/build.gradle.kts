@@ -9,14 +9,14 @@ plugins {
 
 android {
     namespace = "com.nekolaska.Builder"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.nekolaska.Builder"
-        minSdk = 24
-        targetSdk = 36
-        versionCode = 7
-        versionName = "1.1.0"
+        minSdk = 26
+        targetSdk = 37
+        versionCode = 8
+        versionName = "1.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -24,7 +24,7 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
+                getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }

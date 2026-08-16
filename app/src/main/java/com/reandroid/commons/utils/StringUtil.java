@@ -15,7 +15,7 @@ public class StringUtil {
             return true;
         }
         txt=txt.trim();
-        return txt.isEmpty();
+        return txt.length()==0;
     }
     public static String splitThousandComma(long val){
         String str=String.valueOf(val);

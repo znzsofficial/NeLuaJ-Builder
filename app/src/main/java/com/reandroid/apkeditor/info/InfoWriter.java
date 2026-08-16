@@ -18,123 +18,103 @@ package com.reandroid.apkeditor.info;
 import com.reandroid.archive.block.ApkSignatureBlock;
 import com.reandroid.archive.block.CertificateBlock;
 import com.reandroid.arsc.chunk.PackageBlock;
+import com.reandroid.arsc.chunk.xml.ResXmlDocument;
 import com.reandroid.arsc.coder.ValueCoder;
 import com.reandroid.arsc.container.SpecTypePair;
 import com.reandroid.arsc.model.ResourceEntry;
-import com.reandroid.arsc.value.Entry;
-import com.reandroid.arsc.value.ResValue;
-import com.reandroid.arsc.value.Value;
-import com.reandroid.arsc.value.ValueType;
+import com.reandroid.arsc.pool.StringPool;
 import com.reandroid.dex.model.DexDirectory;
 import com.reandroid.dex.model.DexFile;
 import com.reandroid.utils.HexUtil;
+import com.reandroid.arsc.value.*;
 import com.reandroid.utils.collection.CollectionUtil;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-
-import kotlin.io.encoding.Base64;
+import java.util.*;
 
 public abstract class InfoWriter implements Closeable {
     private final Writer writer;
-
-    public InfoWriter(Writer writer) {
+    public InfoWriter(Writer writer){
         this.writer = writer;
     }
 
     public void writeSignatureInfo(ApkSignatureBlock signatureBlock, boolean base64) throws IOException {
-        if (signatureBlock == null) {
+        if(signatureBlock == null){
             writeNameValue("certificates", "null");
-        } else {
+        }else {
             writeCertificates(CollectionUtil.toList(signatureBlock.getCertificates()), base64);
         }
     }
-
     public void writeResources(PackageBlock packageBlock, List<String> typeFilters, boolean writeEntries) throws IOException {
         Iterator<ResourceEntry> itr = packageBlock.getResources();
-        while (itr.hasNext()) {
+        while (itr.hasNext()){
             ResourceEntry resourceEntry = itr.next();
             writeResources(resourceEntry, writeEntries);
         }
     }
-
     public void writeDexInfo(DexDirectory dexDirectory) throws IOException {
-        for (DexFile dexFile : dexDirectory) {
+        for(DexFile dexFile : dexDirectory){
             writeDexInfo(dexFile, true);
         }
     }
 
+    public abstract void writeStringPool(String source, StringPool<?> stringPool) throws IOException;
+    public abstract void writeXmlDocument(String sourcePath, ResXmlDocument xmlDocument) throws IOException;
     public abstract void writeCertificates(List<CertificateBlock> certificateList, boolean base64) throws IOException;
-
     public abstract void writeDexInfo(DexFile dexFile, boolean writeSectionInfo) throws IOException;
-
     public abstract void writeResources(ResourceEntry resourceEntry, boolean writeEntries) throws IOException;
-
     public abstract void writePackageNames(Collection<PackageBlock> packageBlocks) throws IOException;
-
     public abstract void writeEntries(String name, List<Entry> entryList) throws IOException;
-
     public abstract void writeArray(String name, Object[] values) throws IOException;
-
     public abstract void writeNameValue(String name, Object value) throws IOException;
-
     public abstract void flush() throws IOException;
-
-    boolean contains(SpecTypePair specTypePair, List<String> filterList) {
-        if (filterList.isEmpty()) {
+    boolean contains(SpecTypePair specTypePair, List<String> filterList){
+        if(filterList.size() == 0){
             return true;
         }
         return filterList.contains(specTypePair.getTypeName());
     }
-
     public Writer getWriter() {
         return writer;
     }
-
     @Override
-    public void close() throws IOException {
+    public void close() throws IOException{
         this.writer.close();
     }
 
-    static String toString(Object obj) {
-        if (obj != null) {
+    static String toString(Object obj){
+        if(obj != null){
             return obj.toString();
         }
         return null;
     }
-
-    static String getValueAsString(Entry entry) {
-        ResValue resValue = entry.getResValue();
-        if (resValue == null) {
-            return "";
-        }
-        return getValueAsString(resValue);
-    }
-
-    static String getValueAsString(Value value) {
+    static String getValueAsString(Value value){
         ValueType valueType = value.getValueType();
-        if (valueType == ValueType.STRING) {
+        if(valueType == ValueType.STRING){
             return value.getValueAsString();
         }
         String decoded = ValueCoder.decode(valueType, value.getData());
-        if (decoded != null) {
+        if(decoded != null){
             return decoded;
         }
-        if (valueType == ValueType.ATTRIBUTE) {
+        if(valueType == ValueType.ATTRIBUTE){
             return HexUtil.toHex8("?0x", value.getData());
         }
-        if (valueType == ValueType.REFERENCE) {
+        if(valueType == ValueType.REFERENCE){
             return HexUtil.toHex8("@0x", value.getData());
         }
         return HexUtil.toHex8("0x", value.getData());
     }
-
     static String toBase64(byte[] bytes) {
-        return Base64.Default.encode(bytes, 0, bytes.length);
+        return Base64.getEncoder().encodeToString(bytes);
+    }
+
+    static void writeSpaces(Writer writer, int amount) throws IOException {
+        for (int i = 0; i < amount; i ++) {
+            writer.append(' ');
+        }
     }
 
     static final String TAG_RES_PACKAGES = "resource-packages";

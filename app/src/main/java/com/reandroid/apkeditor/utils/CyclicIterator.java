@@ -15,8 +15,6 @@
  */
 package com.reandroid.apkeditor.utils;
 
-import androidx.annotation.NonNull;
-
 import java.util.Iterator;
 
 public class CyclicIterator<T> implements Iterator<T> {
@@ -70,7 +68,6 @@ public class CyclicIterator<T> implements Iterator<T> {
         this.count = 0;
     }
 
-    @NonNull
     @Override
     public String toString() {
         return "[cycle = " + getCycleCount() + ": " + getIndex()

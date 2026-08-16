@@ -16,54 +16,55 @@
 package com.reandroid.apkeditor.smali;
 
 import java.io.File;
+import java.util.Comparator;
 import java.util.List;
 
 public class SmaliUtil {
 
-    static void sortDexFiles(List<File> fileList) {
-        fileList.sort((file1, file2) -> {
-            int i1 = getDexNumber(file1.getName());
-            int i2 = getDexNumber(file2.getName());
-            if (i1 == i2) {
-                return 0;
+    static void sortDexFiles(List<File> fileList){
+        fileList.sort(new Comparator<File>() {
+            @Override
+            public int compare(File file1, File file2) {
+                int i1 = getDexNumber(file1.getName());
+                int i2 = getDexNumber(file2.getName());
+                if(i1 == i2){
+                    return 0;
+                }
+                if(i1 < 0 || i1 < i2){
+                    return -1;
+                }
+                return 1;
             }
-            if (i1 < 0 || i1 < i2) {
-                return -1;
-            }
-            return 1;
         });
     }
-
-    static String getDexFileName(int i) {
-        if (i == 0) {
+    static String getDexFileName(int i){
+        if(i==0){
             return "classes.dex";
         }
         return "classes" + i + ".dex";
     }
-
-    static boolean isClassesDir(File dir) {
-        if (!dir.isDirectory()) {
+    static boolean isClassesDir(File dir){
+        if(!dir.isDirectory()){
             return false;
         }
         return getDexNumber(dir.getName()) >= 0;
     }
-
-    static int getDexNumber(String name) {
-        if (name.equals("classes") || name.equals("classes.dex")) {
+    static int getDexNumber(String name){
+        if(name.equals("classes") || name.equals("classes.dex")){
             return 0;
         }
         String prefix = "classes";
-        if (!name.startsWith(prefix)) {
+        if(!name.startsWith(prefix)){
             return -1;
         }
         name = name.substring(prefix.length());
         String ext = ".dex";
-        if (name.endsWith(ext)) {
-            name = name.substring(0, name.length() - ext.length());
+        if(name.endsWith(ext)){
+            name =  name.substring(0, name.length() - ext.length());
         }
         try {
             return Integer.parseInt(name);
-        } catch (NumberFormatException ignored) {
+        }catch (NumberFormatException ignored){
             return -1;
         }
     }

@@ -1,284 +1,172 @@
 /*
- *  Copyright (C) 2022 github.com/REAndroid
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+  *  Copyright (C) 2022 github.com/REAndroid
+  *
+  *  Licensed under the Apache License, Version 2.0 (the "License");
+  *  you may not use this file except in compliance with the License.
+  *  You may obtain a copy of the License at
+  *
+  *      http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package com.reandroid.apkeditor.decompile;
 
-import androidx.annotation.NonNull;
-
-import com.reandroid.apkeditor.APKEditor;
-import com.reandroid.apkeditor.Options;
-import com.reandroid.apkeditor.utils.StringHelper;
-import com.reandroid.commons.command.ARGException;
+import com.reandroid.apkeditor.OptionsWithFramework;
+import com.reandroid.jcommand.annotations.ChoiceArg;
+import com.reandroid.jcommand.annotations.CommandOptions;
+import com.reandroid.jcommand.annotations.OptionArg;
+import com.reandroid.utils.StringsUtil;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
-public class DecompileOptions extends Options {
+@CommandOptions(
+        name = "d",
+        alternates = {"decode"},
+        description = "decode_description",
+        usage = "decode_usage",
+        examples = {
+                "decode_example_1",
+                "decode_example_2",
+                "decode_example_3",
+                "decode_example_4",
+                "decode_example_5"
+        },
+        notes = {
+                "decode_note_1",
+                "decode_note_2"
+        })
+public class DecompileOptions extends OptionsWithFramework {
+
+    @ChoiceArg(name = "-t",
+            values = {
+                    TYPE_XML,
+                    TYPE_JSON,
+                    TYPE_RAW,
+                    TYPE_SIG
+            },
+            description = "decode_types"
+    )
+    public String type = TYPE_XML;
+
+    @OptionArg(name = "-split-json", flag = true, description = "split_json")
     public boolean splitJson;
+
+    @OptionArg(name = "-vrd", flag = true, description = "validate_resources_dir")
     public boolean validateResDir;
+
+    @OptionArg(name = "-res-dir", description = "res_dir_name")
     public String resDirName;
+
+    @OptionArg(name = "-keep-res-path", flag = true, description = "keep_original_res")
     public boolean keepResPath;
+
+    @OptionArg(name = "-dex", flag = true, description = "raw_dex")
     public boolean dex;
+
+    @OptionArg(name = "-no-cache", description = "decode_no_cache", flag = true)
+    public boolean noCache;
+
+    @OptionArg(name = "-no-dex-debug", flag = true, description = "no_dex_debug")
     public boolean noDexDebug;
+
+    @OptionArg(name = "-dex-markers", flag = true, description = "dump_dex_markers")
     public boolean dexMarkers;
 
-    public File keepClassListFile;
-    public File keepResourceNameListFile;
+    @OptionArg(name = "-load-dex", description = "decode_load_dex")
+    public int loadDex = 3;
+
+    @ChoiceArg(name = "-dex-lib",
+            values = {
+                    DEX_LIB_INTERNAL,
+                    DEX_LIB_JF
+            },
+            description = "dex_lib"
+    )
+    public String dexLib = DEX_LIB_INTERNAL;
+
+    @OptionArg(name = "-smali-registers", flag = true, description = "smali_registers")
+    public boolean smaliRegisters;
+
+    @ChoiceArg(name = "-comment-level",
+            values = {
+                    COMMENT_LEVEL_OFF,
+                    COMMENT_LEVEL_BASIC,
+                    COMMENT_LEVEL_DETAIL,
+                    COMMENT_LEVEL_DETAIL2,
+                    COMMENT_LEVEL_FULL
+            },
+            description = "comment_level"
+    )
+    public String commentLevel = COMMENT_LEVEL_BASIC;
+
+    @OptionArg(name = "-sig", description = "signatures_path")
+    public File signaturesDirectory;
+
+    @OptionArg(name = "-dex-profile", flag = true, description = "decode_dex_profile")
+    public boolean dexProfile;
+
+    @OptionArg(name = "-remove-annotation", description = "remove_annotation")
+    public final List<String> removeAnnotations = new ArrayList<>();
 
     public DecompileOptions() {
-        type = TYPE_XML;
     }
 
     @Override
-    public void parse(String[] args) throws ARGException {
-        parseInput(args);
-        parseType(args, type);
-        parseOutput(args);
-        parseSplitResources(args);
-        parseNoDexDebug(args);
-        parseDexMarkers(args);
-        parseDex(args);
-        parseKeepResPath(args);
-        parseResDirName(args);
-        parseValidateResDir(args);
-        parseSignaturesDir(args);
-        if (signaturesDirectory == null && type == null) {
-            type = TYPE_XML;
-        }
-        parseKeepClassList(args);
-        parseKeepResourceNameList(args);
-        super.parse(args);
+    public Decompiler newCommandExecutor() {
+        return new Decompiler(this);
     }
 
-    private void parseKeepResPath(String[] args) {
-        keepResPath = containsArg(ARG_keep_res_path, true, args);
-    }
-
-    private void parseValidateResDir(String[] args) {
-        validateResDir = containsArg(ARG_validate_res_dir, true, args);
-    }
-
-    private void parseResDirName(String[] args) throws ARGException {
-        this.resDirName = parseArgValue(ARG_resDir, true, args);
-    }
-
-    private void parseSplitResources(String[] args) {
-        splitJson = containsArg(ARG_split_resources, true, args);
-    }
-
-    private void parseNoDexDebug(String[] args) {
-        noDexDebug = containsArg(ARG_no_dex_debug, true, args);
-    }
-
-    private void parseDexMarkers(String[] args) {
-        dexMarkers = containsArg(ARG_dex_markers, true, args);
-    }
-
-    private void parseDex(String[] args) {
-        dex = containsArg(ARG_dex, true, args);
-    }
-
-    private void parseOutput(String[] args) throws ARGException {
-        this.outputFile = null;
-        File file = parseFile(ARG_output, args);
-        if (file == null) {
-            file = getOutputFromInput(inputFile);
-        }
-        this.outputFile = file;
-    }
-
-    private File getOutputFromInput(File file) {
-        String name = file.getName();
-        int i = name.lastIndexOf('.');
-        if (i > 0) {
-            name = name.substring(0, i);
-        }
-        name = name + "_decompile_" + type;
-        File dir = file.getParentFile();
-        if (dir == null) {
-            return new File(name);
-        }
-        return new File(dir, name);
-    }
-
-    private void parseInput(String[] args) throws ARGException {
-        this.inputFile = null;
-        File file = parseFile(ARG_input, args);
-        if (file == null) {
-            throw new ARGException("Missing input file");
-        }
-        if (!file.isFile()) {
-            throw new ARGException("No such file: " + file);
-        }
-        this.inputFile = file;
-    }
-
-    private void parseKeepClassList(String[] args) throws ARGException {
-        if (!APKEditor.isExperimental()) {
-            return;
-        }
-        this.keepClassListFile = null;
-        File file = parseFile(ARG_keep_classes, args);
-        if (file == null) {
-            return;
-        }
-        if (!file.isFile()) {
-            throw new ARGException("No such file: " + file);
-        }
-        this.keepClassListFile = file;
-    }
-
-    private void parseKeepResourceNameList(String[] args) throws ARGException {
-        if (!APKEditor.isExperimental()) {
-            return;
-        }
-        this.keepResourceNameListFile = null;
-        File file = parseFile(ARG_keep_resources, args);
-        if (file == null) {
-            return;
-        }
-        if (!file.isFile()) {
-            throw new ARGException("No such file: " + file);
-        }
-        this.keepResourceNameListFile = file;
-    }
-
-    @NonNull
     @Override
-    public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("   Input: ").append(inputFile);
-        File out;
-        if (signaturesDirectory != null) {
-            out = signaturesDirectory;
-        } else {
-            out = outputFile;
+    public void validateInput(boolean isFile, boolean isDirectory) {
+        super.validateInput(true, false);
+    }
+    @Override
+    public void validateOutput(boolean isFile) {
+        super.validateOutput(false);
+    }
+    public boolean containsCommentLevel(String level) {
+        String commentLevel = this.commentLevel;
+        if (StringsUtil.isEmpty(level)) {
+            return COMMENT_LEVEL_OFF.equals(commentLevel);
         }
-        builder.append("\n Output: ").append(out);
-        if (resDirName != null) {
-            builder.append("\nres dir: ").append(resDirName);
+        if (COMMENT_LEVEL_OFF.equals(level)) {
+            return commentLevel.equals(level);
         }
-        if (validateResDir) {
-            builder.append("\n Validate res dir name: true");
+        if (COMMENT_LEVEL_BASIC.equals(level)) {
+            return commentLevel.equals(level) ||
+                    COMMENT_LEVEL_DETAIL.equals(commentLevel) ||
+                    COMMENT_LEVEL_DETAIL2.equals(commentLevel) ||
+                    COMMENT_LEVEL_FULL.equals(commentLevel);
         }
-        if (force) {
-            builder.append("\n Force: true");
+        if (COMMENT_LEVEL_DETAIL.equals(level)) {
+            return commentLevel.equals(level) ||
+                    COMMENT_LEVEL_DETAIL2.equals(commentLevel) ||
+                    COMMENT_LEVEL_FULL.equals(commentLevel);
         }
-        if (keepResPath) {
-            builder.append("\n Keep res path: true");
+        if (COMMENT_LEVEL_DETAIL2.equals(level)) {
+            return commentLevel.equals(level) ||
+                    COMMENT_LEVEL_FULL.equals(commentLevel);
         }
-        if (frameworkVersion != null) {
-            builder.append("\nFramework version: ").append(frameworkVersion);
+        if (COMMENT_LEVEL_FULL.equals(level)) {
+            return commentLevel.equals(level);
         }
-        builder.append("\n Type: ").append(type);
-        if (!TYPE_XML.equals(type) && signaturesDirectory == null) {
-            builder.append("\n Split: ").append(splitJson);
-        }
-        if (frameworks != null && frameworks.length > 0) {
-            builder.append("\nFrameworks:");
-            for (File file : frameworks) {
-                builder.append("\n           ");
-                builder.append(file);
-            }
-        }
-        builder.append("\n ---------------------------- ");
-        return builder.toString();
+        return false;
     }
 
-    public static String getHelp() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(Decompiler2.DESCRIPTION);
-        builder.append("\nOptions:\n");
-        String[][] table = new String[][]{
-                new String[]{ARG_input, ARG_DESC_input},
-                new String[]{ARG_output, ARG_DESC_output},
-                new String[]{ARG_framework_version, ARG_DESC_framework_version},
-                new String[]{ARG_framework, ARG_DESC_framework},
-                new String[]{ARG_sig, ARG_DESC_sig},
-                new String[]{ARG_type, ARG_DESC_type},
-                new String[]{ARG_resDir, ARG_DESC_resDir}
-        };
-        StringHelper.printTwoColumns(builder, "   ", Options.PRINT_WIDTH, table);
-        builder.append("\nFlags:\n");
-        table = new String[][]{
-                new String[]{ARG_dex, ARG_DESC_dex},
-                new String[]{ARG_force, ARG_DESC_force},
-                new String[]{ARG_keep_res_path, ARG_DESC_keep_res_path},
-                new String[]{ARG_split_resources, ARG_DESC_split_resources},
-                new String[]{ARG_validate_res_dir, ARG_DESC_validate_res_dir},
-                new String[]{ARG_no_dex_debug, ARG_DESC_no_dex_debug},
-                new String[]{ARG_dex_markers, ARG_DESC_dex_markers},
-                new String[]{ARG_keep_classes, ARG_DESC_keep_classes},
-                new String[]{ARG_keep_resources, ARG_DESC_keep_resources}
-        };
-        StringHelper.printTwoColumns(builder, "   ", Options.PRINT_WIDTH, table);
-        String jar = APKEditor.getJarName();
-        builder.append("\n\nExample-1:");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Decompiler2.ARG_SHORT).append(" ")
-                .append(ARG_input).append(" path/to/input.apk");
-        builder.append(" ").append(ARG_output).append(" path/to/out_dir");
-        builder.append("\nExample-2:");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Decompiler2.ARG_SHORT).append(" ")
-                .append(ARG_input).append(" path/to/input.apk");
-        builder.append("\nExample-3:");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Decompiler2.ARG_SHORT).append(" ")
-                .append(ARG_input).append(" path/to/input.apk").append(" ").append(ARG_split_resources);
-        builder.append("\nExample-4: (XML)");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Decompiler2.ARG_SHORT).append(" ")
-                .append(ARG_type).append(" ").append(TYPE_XML).append(" ").append(ARG_input)
-                .append(" path/to/input.apk");
-        builder.append("\nExample-5: (signatures)");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Decompiler2.ARG_SHORT).append(" ")
-                .append(ARG_type).append(" ").append(TYPE_SIG).append(" ").append(ARG_input)
-                .append(" path/to/input.apk")
-                .append(" ").append(ARG_sig).append(" path/to/signatures_dir");
-        builder.append("\nExample-6: (framework)");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Decompiler2.ARG_SHORT).append(" ")
-                .append(ARG_input).append(" input.apk");
-        builder.append(" ").append(ARG_framework).append(" framework-res.apk");
-        builder.append(" ").append(ARG_framework).append(" platforms/android-32/android.jar");
-        return builder.toString();
+    @Override
+    public File generateOutputFromInput(File input) {
+        return generateOutputFromInput(input, "_decompile_" + type);
     }
 
-    private static final String ARG_split_resources = "-split-json";
-    private static final String ARG_DESC_split_resources = "splits resources.arsc into multiple parts as per type entries (use this for large files)";
-
-    private static final String ARG_DESC_type = "Decode types: \n  1) json \n  2) xml \n  3) raw \n  4) sig \n default=" + TYPE_XML;
-
-
-    private static final String ARG_keep_res_path = "-keep-res-path";
-    private static final String ARG_DESC_keep_res_path = """
-                        Keeps original res/* file paths:
-                          *Applies only when decoding to xml\\n
-                          *All res/* files will be placed on dir <res-files>
-                          *The relative paths will be linked to values/*xml\
-            """;
-
-
-    private static final String ARG_dex = "-dex";
-    private static final String ARG_DESC_dex = "Copy raw dex files / skip smali";
-
-    private static final String ARG_no_dex_debug = "-no-dex-debug";
-    private static final String ARG_DESC_no_dex_debug = "Drops all debug info from smali/dex";
-
-    private static final String ARG_dex_markers = "-dex-markers";
-    private static final String ARG_DESC_dex_markers = "Dumps dex markers (applies only when smali mode)";
-
-    private static final String ARG_keep_classes = "-keep-classes";
-    private static final String ARG_DESC_keep_classes = "(Beta) File containing list of class names to keep, Names should be in dalvik format.";
-
-    private static final String ARG_keep_resources = "-keep-resources";
-    private static final String ARG_DESC_keep_resources = "(Beta) File containing list of resources names to keep, Names should be in reference name format. e.g: @string/app_name";
-
+    public static final String COMMENT_LEVEL_OFF = "off";
+    public static final String COMMENT_LEVEL_BASIC = "basic";
+    public static final String COMMENT_LEVEL_DETAIL = "detail";
+    public static final String COMMENT_LEVEL_DETAIL2 = "detail2";
+    public static final String COMMENT_LEVEL_FULL = "full";
 }

@@ -18,17 +18,13 @@ package com.reandroid.apkeditor.smali;
 import com.reandroid.apk.APKLogger;
 import com.reandroid.apk.ApkModuleEncoder;
 import com.reandroid.apk.DexEncoder;
-import com.reandroid.apkeditor.APKEditor;
+import com.reandroid.apkeditor.compile.BuildOptions;
 import com.reandroid.archive.FileInputSource;
 import com.reandroid.archive.InputSource;
 import com.reandroid.arsc.chunk.xml.AndroidManifestBlock;
 import com.reandroid.dex.model.DexFile;
-import com.reandroid.dex.sections.Marker;
-import com.reandroid.dex.sections.SectionType;
-import com.reandroid.dex.smali.SmaliReader;
 import com.reandroid.utils.StringsUtil;
-import com.reandroid.utils.io.FileIterator;
-import com.reandroid.utils.io.IOUtil;
+import com.reandroid.utils.io.FileUtil;
 import org.jf.dexlib2.extra.DexMarker;
 import org.jf.smali.Smali;
 import org.jf.smali.SmaliOptions;
@@ -39,12 +35,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SmaliCompiler implements DexEncoder {
+
+    private final BuildOptions buildOptions;
     private APKLogger apkLogger;
-    private final boolean noCache;
     private Integer minSdkVersion;
-    public SmaliCompiler(boolean noCache){
-        this.noCache = noCache;
+
+    public SmaliCompiler(BuildOptions buildOptions) {
+        this.buildOptions = buildOptions;
     }
+
     @Override
     public List<InputSource> buildDexFiles(ApkModuleEncoder apkModuleEncoder, File mainDir) throws IOException {
         File smaliDir = new File(mainDir, "smali");
@@ -56,7 +55,7 @@ public class SmaliCompiler implements DexEncoder {
             this.minSdkVersion = manifestBlock.getMinSdkVersion();
         }
         if(minSdkVersion == null){
-            minSdkVersion = 30;
+            minSdkVersion = 24;
         }
         List<InputSource> results = new ArrayList<>();
         List<File> classesDirList = listClassesDirectories(smaliDir);
@@ -80,18 +79,15 @@ public class SmaliCompiler implements DexEncoder {
         }
     }
     private InputSource build(String progress, File classesDir, File dexCacheFile) throws IOException {
-        if(APKEditor.isExperimental()) {
-            return buildExperimental(progress, classesDir, dexCacheFile);
+        if(BuildOptions.DEX_LIB_INTERNAL.equals(buildOptions.dexLib)) {
+            return buildWithInternalLib(progress, classesDir, dexCacheFile);
         }
-        return buildJesusFreke(progress, classesDir, dexCacheFile);
+        return buildWithJesusFreke(progress, classesDir, dexCacheFile);
     }
-    private InputSource buildJesusFreke(String progress, File classesDir, File dexCacheFile) throws IOException {
-        logMessage(progress + "Smali: " + dexCacheFile.getName());
+    private InputSource buildWithJesusFreke(String progress, File classesDir, File dexCacheFile) throws IOException {
+        logMessage(progress + "Smali<JF>: " + dexCacheFile.getName());
         SmaliOptions smaliOptions = new SmaliOptions();
-        File dir = dexCacheFile.getParentFile();
-        if(dir != null && !dir.exists()){
-            dir.mkdirs();
-        }
+        FileUtil.ensureParentDirectory(dexCacheFile);
         smaliOptions.outputDexFile = dexCacheFile.getAbsolutePath();
         File marker = new File(classesDir, DexMarker.FILE_NAME);
         if(marker.isFile()){
@@ -109,51 +105,25 @@ public class SmaliCompiler implements DexEncoder {
         }
         return new FileInputSource(dexCacheFile, dexCacheFile.getName());
     }
-    private InputSource buildExperimental(String progress, File classesDir, File dexCacheFile) throws IOException {
-        logMessage(progress + "Smali: " + dexCacheFile.getName());
+    private InputSource buildWithInternalLib(String progress, File classesDir, File dexCacheFile) throws IOException {
+        logMessage(progress + "Smali<INTERNAL>: " + dexCacheFile.getName());
         DexFile dexFile = DexFile.createDefault();
-        FileIterator fileIterator = new FileIterator(classesDir,
-                FileIterator.getExtensionFilter(".smali"));
-        while (fileIterator.hasNext()) {
-            File file = fileIterator.next();
-            try {
-                dexFile.fromSmali(SmaliReader.of(file));
-            }catch (Exception e) {
-                throw new IOException("Error at: " + file, e);
-            }
-        }
-        dexFile.refresh();
-        readMarkers(dexFile, classesDir);
+        dexFile.setSimpleName(dexCacheFile.getName());
         int version = 0;
         if (this.minSdkVersion != null) {
             version = minSdkVersion;
         }
         version = apiToDexVersion(version);
         dexFile.setVersion(version);
-        dexFile.clearEmptySections();
-        dexFile.sortSection(SectionType.getR8Order());
-        dexFile.shrink();
+        dexFile.parseSmaliDirectory(classesDir);
         dexFile.refreshFull();
         dexFile.write(dexCacheFile);
         dexFile.close();
         return new FileInputSource(dexCacheFile, dexCacheFile.getName());
     }
-    private void readMarkers(DexFile dexFile, File classesDir) throws IOException {
-        File markersFile = new File(classesDir, DexMarker.FILE_NAME);
-        if(markersFile.isFile()){
-            logMessage("Reading markers ...");
-            String[] content = StringsUtil.split(IOUtil.readUtf8(markersFile), '\n');
-            for(String markerString : content) {
-                Marker marker = Marker.parse(markerString);
-                if(marker != null) {
-                    dexFile.addMarker(marker);
-                }
-            }
-        }
-    }
 
     private boolean isModified(File classesDir, File dexCacheFile){
-        if(noCache || !dexCacheFile.isFile()){
+        if(buildOptions.noCache || !dexCacheFile.isFile()){
             return true;
         }
         long dexMod = dexCacheFile.lastModified();
@@ -215,13 +185,25 @@ public class SmaliCompiler implements DexEncoder {
         if (api <= 23) {
             return 35;
         }
-        return switch (api) {
-            case 24, 25 -> 37;
-            case 26, 27 -> 38;
-            //case 28 -> 39;
-            case 29, 30, 31, 32, 33, 34 -> 40;
-            case 35 -> 41;
-            default -> 39;
-        };
+        switch (api) {
+            case 24:
+            case 25:
+                return 37;
+            case 26:
+            case 27:
+                return 38;
+            case 28:
+                return 39;
+            case 29:
+            case 30:
+            case 31:
+            case 32:
+            case 33:
+            case 34:
+                return 40;
+            case 35:
+                return 41;
+        }
+        return 39;
     }
 }

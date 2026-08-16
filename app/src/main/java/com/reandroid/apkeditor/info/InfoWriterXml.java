@@ -16,12 +16,17 @@
 package com.reandroid.apkeditor.info;
 
 import com.reandroid.archive.block.CertificateBlock;
+import com.reandroid.arsc.chunk.xml.ResXmlDocument;
+import com.reandroid.arsc.chunk.xml.ResXmlNode;
+import com.reandroid.arsc.item.StringItem;
+import com.reandroid.arsc.pool.StringPool;
 import com.reandroid.dex.model.DexFile;
-import com.reandroid.dex.sections.MapItem;
-import com.reandroid.dex.sections.MapList;
+import com.reandroid.dex.model.DexLayout;
+import com.reandroid.dex.model.DexSectionInfo;
 import com.reandroid.dex.sections.Marker;
 import com.reandroid.utils.collection.CollectionUtil;
 import com.reandroid.utils.collection.ComputeList;
+import com.reandroid.xml.XMLUtil;
 import com.reandroid.xml.kxml2.KXmlSerializer;
 import com.reandroid.arsc.array.ResValueMapArray;
 import com.reandroid.arsc.chunk.PackageBlock;
@@ -32,6 +37,7 @@ import com.reandroid.arsc.value.Entry;
 import com.reandroid.arsc.value.ResTableMapEntry;
 import com.reandroid.arsc.value.ResValue;
 import com.reandroid.arsc.value.ResValueMap;
+import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -46,6 +52,61 @@ public class InfoWriterXml extends InfoWriter{
 
     public InfoWriterXml(Writer writer) {
         super(writer);
+    }
+
+    @Override
+    public void writeStringPool(String source, StringPool<?> stringPool) throws IOException {
+        KXmlSerializer serializer = getSerializer();
+        int indent = mIndent + 2;
+        mIndent = indent;
+        writeIndent(serializer, indent);
+        indent = mIndent + 2;
+        mIndent = indent;
+        serializer.startTag(null, "string-pool");
+        serializer.attribute(null, "source", source);
+        serializer.attribute(null, "count", Integer.toString(stringPool.size()));
+        serializer.attribute(null, "styles", Integer.toString(stringPool.countStyles()));
+        serializer.attribute(null, "sorted", String.valueOf(stringPool.getHeaderBlock().isSorted()));
+        serializer.attribute(null, "utf8", String.valueOf(stringPool.isUtf8()));
+        serializer.attribute(null, "bytes", String.valueOf(stringPool.getHeaderBlock().getChunkSize()));
+
+        int size = stringPool.size();
+        for (int i = 0; i < size; i++ ) {
+            StringItem item = stringPool.get(i);
+            writeIndent(serializer, indent);
+            serializer.startTag(null, "string");
+            serializer.attribute(null, "id", Integer.toString(item.getIndex()));
+            item.serializeText(serializer);
+            serializer.endTag(null, "string");
+        }
+
+        indent = indent - 2;
+        writeIndent(serializer, indent);
+        serializer.endTag(null, "string-pool");
+        serializer.flush();
+    }
+    @Override
+    public void writeXmlDocument(String sourcePath, ResXmlDocument xmlDocument) throws IOException {
+        KXmlSerializer serializer = getSerializer();
+        serializer.flush();
+        boolean decode = false;
+        if (xmlDocument.getPackageBlock() != null) {
+            decode = true;
+        }
+        Writer writer = getWriter();
+        writer.write("\n");
+        String name = "document";
+        serializer.startTag(null, name);
+        serializer.attribute(null, "source-path", sourcePath);
+        XmlSerializer documentSerializer = newSerializer();
+        Iterator<ResXmlNode> iterator = xmlDocument.iterator();
+        while (iterator.hasNext()) {
+            ResXmlNode xmlNode = iterator.next();
+            xmlNode.serialize(documentSerializer, decode);
+        }
+        documentSerializer.flush();
+        writer.write("\n");
+        serializer.endTag(null, name);
     }
 
     @Override
@@ -65,35 +126,73 @@ public class InfoWriterXml extends InfoWriter{
         int indent = mIndent + 2;
         mIndent = indent;
         writeIndent(serializer, indent);
-        indent = mIndent + 2;
-        mIndent = indent;
         serializer.startTag(null, "dex");
+
         serializer.attribute(null, "name", dexFile.getFileName());
         serializer.attribute(null, "version", Integer.toString(dexFile.getVersion()));
-        List<Marker> markersList = CollectionUtil.toList(dexFile.getMarkers());
-        writeArray("markers", markersList.toArray());
-
-        MapList mapList = dexFile.getDexLayout().getMapList();
-        writeIndent(serializer, indent);
-        serializer.startTag(null, "dex-sections");
-        indent = mIndent + 2;
-        mIndent = indent;
-        for(MapItem mapItem : mapList){
-            writeIndent(serializer, indent);
-            serializer.startTag(null, "section");
-            serializer.attribute(null, "name", mapItem.getSectionType().getName());
-            serializer.attribute(null, "count", Integer.toString(mapItem.getCountValue()));
-            serializer.attribute(null, "offset", Integer.toString(mapItem.getOffsetValue()));
-            serializer.endTag(null, "section");
+        if (dexFile.isMultiLayout()) {
+            int size = dexFile.size();
+            serializer.attribute(null, "layouts", Integer.toString(size));
+            for (int i = 0; i < size; i++) {
+                writeDexLayout(serializer, dexFile.getLayout(i));
+            }
+        } else if (dexFile.size() != 0) {
+            writeDexLayout(serializer, dexFile.getFirst());
+        } else {
+            serializer.text("EMPTY DEX");
         }
-        indent = mIndent - 2;
-        mIndent = indent;
-        writeIndent(serializer, indent);
-        serializer.endTag(null, "dex-sections");
-        indent = mIndent - 2;
-        mIndent = indent;
         writeIndent(serializer, indent);
         serializer.endTag(null, "dex");
+        indent = mIndent - 2;
+        mIndent = indent;
+    }
+    private void writeDexLayout(KXmlSerializer serializer, DexLayout layout) throws IOException {
+        int indent = mIndent + 2;
+        mIndent = indent;
+        boolean tagOpened = false;
+        if (layout.isMultiLayoutEntry()) {
+            writeIndent(serializer, indent);
+            serializer.startTag(null, "layout");
+            indent = mIndent + 2;
+            mIndent = indent;
+            tagOpened = true;
+            serializer.attribute(null, "name", layout.getName());
+            serializer.attribute(null, "version", Integer.toString(layout.getVersion()));
+        }
+        List<Marker> markersList = CollectionUtil.toList(layout.getMarkers());
+        if (markersList.size() != 0) {
+            writeArray("markers", markersList.toArray());
+        }
+        writeSectionInfo(serializer, layout);
+        indent = indent - 2;
+        this.mIndent = indent;
+        if (tagOpened) {
+            writeIndent(serializer, indent);
+            serializer.endTag(null, "layout");
+            indent = indent - 2;
+            this.mIndent = indent;
+        }
+    }
+    private void writeSectionInfo(KXmlSerializer serializer, DexLayout layout) throws IOException {
+        Iterator<DexSectionInfo> iterator = layout.getSectionInfo();
+        if (!iterator.hasNext()) {
+            return;
+        }
+        int indent = this.mIndent;
+        writeIndent(serializer, indent);
+        serializer.startTag(null, "dex-sections");
+        while (iterator.hasNext()) {
+            DexSectionInfo sectionInfo = iterator.next();
+            writeIndent(serializer, indent + 2);
+            serializer.startTag(null, "section");
+            serializer.attribute(null, "name", sectionInfo.getSectionType().getName());
+            serializer.attribute(null, "count", Integer.toString(sectionInfo.getCount()));
+            serializer.attribute(null, "offset", Integer.toString(sectionInfo.getOffset()));
+            serializer.endTag(null, "section");
+        }
+        this.mIndent = indent;
+        writeIndent(serializer, indent);
+        serializer.endTag(null, "dex-sections");
     }
     @Override
     public void writeResources(PackageBlock packageBlock, List<String> typeFilters, boolean writeEntries) throws IOException {
@@ -243,7 +342,7 @@ public class InfoWriterXml extends InfoWriter{
     }
     @Override
     public void writePackageNames(Collection<PackageBlock> packageBlocks) throws IOException {
-        if(packageBlocks == null || packageBlocks.isEmpty()){
+        if(packageBlocks == null || packageBlocks.size() == 0){
             return;
         }
         int level = INDENT;
@@ -268,7 +367,7 @@ public class InfoWriterXml extends InfoWriter{
     }
     @Override
     public void writeEntries(String name, List<Entry> entryList) throws IOException {
-        if(entryList == null || entryList.isEmpty()){
+        if(entryList == null || entryList.size() == 0){
             return;
         }
         Entry first = entryList.get(0);
@@ -364,6 +463,18 @@ public class InfoWriterXml extends InfoWriter{
         writeIndent(serializer, 0);
         serializer.startTag(null, TAG_INFO);
         mSerializer = serializer;
+        return serializer;
+    }
+    private XmlSerializer newSerializer() throws IOException {
+        XmlSerializer current = this.mSerializer;
+        if (current != null) {
+            current.flush();
+        }
+        Writer writer = getWriter();
+        writer.flush();
+        XmlSerializer serializer = new KXmlSerializer();
+        serializer.setOutput(writer);
+        XMLUtil.setFeatureSafe(serializer, XMLUtil.FEATURE_INDENT_OUTPUT, true);
         return serializer;
     }
 

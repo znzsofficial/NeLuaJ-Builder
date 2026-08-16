@@ -37,7 +37,10 @@ public class RefactorUtil {
         if(isSequentialNames(entryNames)){
             return true;
         }
-        return !isAllGoodName(entryNames);
+        if(!isAllGoodName(entryNames)){
+            return true;
+        }
+        return false;
     }
     private static boolean hasDuplicates(Collection<String> entryNames){
         if(entryNames instanceof HashSet){
@@ -75,7 +78,7 @@ public class RefactorUtil {
         return entryNames.size()>10;
     }
     public static boolean isSequentialNames(Collection<String> entryNames){
-        if(entryNames.isEmpty()){
+        if(entryNames.size()==0){
             return false;
         }
         List<String> sortedList= StringHelper.sortAscending(new ArrayList<>(entryNames));
@@ -114,7 +117,7 @@ public class RefactorUtil {
                 return false;
             }
         }
-        return !nameList.isEmpty();
+        return nameList.size()>0;
     }
     public static boolean isGoodName(String name){
         if(name==null){
@@ -124,6 +127,4 @@ public class RefactorUtil {
     }
     private static final Pattern PATTERN_GOOD_NAME =Pattern.compile("^[A-Za-z]{2,15}[_.A-Za-z0-9]*$");
     private static final Pattern PATTERN_GENERATED_NAME=Pattern.compile("^.+_(0x[0-9a-f]{7,8})$");
-
-    public static final String RES_DIR="res";
 }

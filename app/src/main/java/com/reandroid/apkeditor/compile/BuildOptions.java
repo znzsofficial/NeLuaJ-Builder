@@ -1,181 +1,200 @@
 /*
- *  Copyright (C) 2022 github.com/REAndroid
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+  *  Copyright (C) 2022 github.com/REAndroid
+  *
+  *  Licensed under the Apache License, Version 2.0 (the "License");
+  *  you may not use this file except in compliance with the License.
+  *  You may obtain a copy of the License at
+  *
+  *      http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
 package com.reandroid.apkeditor.compile;
 
-import androidx.annotation.NonNull;
-
-import com.reandroid.apkeditor.APKEditor;
-import com.reandroid.apkeditor.Options;
-import com.reandroid.apkeditor.utils.StringHelper;
-import com.reandroid.commons.command.ARGException;
+import com.reandroid.apkeditor.OptionsWithFramework;
+import com.reandroid.app.AndroidManifest;
+import com.reandroid.arsc.chunk.TableBlock;
+import com.reandroid.jcommand.annotations.ChoiceArg;
+import com.reandroid.jcommand.annotations.CommandOptions;
+import com.reandroid.jcommand.annotations.OptionArg;
+import com.reandroid.jcommand.exceptions.CommandException;
 
 import java.io.File;
 
-public class BuildOptions extends Options {
+
+@CommandOptions(
+        name = "b",
+        alternates = {"build"},
+        description = "build_description",
+        examples = {
+                "build_example_1",
+                "build_example_2",
+                "build_example_3",
+                "build_example_4"
+        })
+public class BuildOptions extends OptionsWithFramework {
+
+    @ChoiceArg(
+            name = "-t",
+            values = {
+                    TYPE_XML,
+                    TYPE_JSON,
+                    TYPE_RAW, TYPE_SIG
+            },
+            description = "build_types")
+    public String type;
+
+    @ChoiceArg(
+            name = "-extractNativeLibs",
+            values = {
+                    "manifest",
+                    "none",
+                    "false",
+                    "true"
+            },
+            description = "extract_native_libs")
+    public String extractNativeLibs;
+
+    @OptionArg(name = "-vrd", description = "validate_resources_dir", flag = true)
     public boolean validateResDir;
+
+    @OptionArg(name = "-res-dir", description = "res_dir_name")
     public String resDirName;
-    public boolean isXml;
-    public boolean isRaw;
+
+    @OptionArg(name = "-no-cache", description = "build_no_cache", flag = true)
     public boolean noCache;
 
+    @ChoiceArg(name = "-dex-lib",
+            values = {
+                    DEX_LIB_INTERNAL,
+                    DEX_LIB_JF
+            },
+            description = "dex_lib"
+    )
+    public String dexLib = DEX_LIB_INTERNAL;
+
+    @OptionArg(name = "-sig", description = "signatures_path")
+    public File signaturesDirectory;
+
+    @OptionArg(name = "-dex-profile", flag = true, description = "encode_dex_profile")
+    public boolean dexProfile;
+
     public BuildOptions() {
+        super();
     }
 
     @Override
-    public void parse(String[] args) throws ARGException {
-        parseInput(args);
-        parseOutput(args);
-        parseResDirName(args);
-        parseValidateResDir(args);
-        parseSignaturesDir(args);
-        parseType(args);
-        parseNoCache(args);
+    public Builder newCommandExecutor() {
+        return new Builder(this);
+    }
+
+    @Override
+    public void validateInput(boolean isFile, boolean isDirectory) {
+        isFile = TYPE_SIG.equals(type);
+        super.validateInput(isFile, !isFile);
+        evaluateInputDirectoryType();
+        validateSignaturesDirectory();
+    }
+
+    private void evaluateInputDirectoryType() {
+        String type = this.type;
+        if (type != null) {
+            return;
+        }
+        File file = inputFile;
+        if(isRawInputDirectory(file)) {
+            type = TYPE_RAW;
+        } else if(isJsonInputDirectory(file)) {
+            type = TYPE_JSON;
+            this.inputFile = getJsonInDir(this.inputFile);
+        } else if (isXmlInputDirectory(file)) {
+            type = TYPE_XML;
+        } else if(signaturesDirectory != null){
+            type = TYPE_SIG;
+        } else {
+            throw new CommandException("unknown_build_directory", file);
+        }
+        this.type = type;
+    }
+
+    @Override
+    public void validateOutput(boolean isFile) {
+        super.validateOutput(true);
+    }
+
+    private void validateSignaturesDirectory() {
         if (TYPE_SIG.equals(type)) {
-            if (signaturesDirectory == null) {
-                throw new ARGException("Signatures directory missing! " + ARG_sig + " path/to/signatures_dir");
+            File file = this.signaturesDirectory;
+            if(file == null) {
+                throw new CommandException("missing_sig_directory");
             }
-            if (!signaturesDirectory.isDirectory()) {
-                throw new ARGException("No such directory: " + signaturesDirectory);
-            }
-            if (!inputFile.isFile()) {
-                throw new ARGException("Missing apk file: " + inputFile);
-            }
-        } else if (signaturesDirectory != null) {
-            throw new ARGException("Invalid parameter combination! " +
-                    "\nSignatures directory provided but missing: -t " + TYPE_SIG);
+            validateInputFile(file, false, true);
+        } else if(this.signaturesDirectory != null) {
+            throw new CommandException("invalid_sig_parameter_combination");
         }
-        super.parse(args);
     }
-
-    private void parseNoCache(String[] args) throws ARGException {
-        noCache = containsArg(ARG_no_cache, true, args);
-    }
-
-    private void parseValidateResDir(String[] args) throws ARGException {
-        validateResDir = containsArg(ARG_validate_res_dir, true, args);
-    }
-
-    private void parseResDirName(String[] args) throws ARGException {
-        this.resDirName = parseArgValue(ARG_resDir, true, args);
-    }
-
-    @NonNull
     @Override
-    public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("   Input: ").append(inputFile);
-        builder.append("\n Output: ").append(outputFile);
-        if (resDirName != null) {
-            builder.append("\nres dir: ").append(resDirName);
+    public File generateOutputFromInput(File file) {
+        return generateOutputFromInput(file, "_out.apk");
+    }
+
+    public String getExtractNativeLibs() {
+        String extractNativeLibs = this.extractNativeLibs;
+        if (extractNativeLibs == null) {
+            extractNativeLibs = "manifest";
         }
-        if (validateResDir) {
-            builder.append("\n Validate res dir name: true");
+        return extractNativeLibs;
+    }
+    private static boolean isRawInputDirectory(File dir){
+        File file=new File(dir, AndroidManifest.FILE_NAME_BIN);
+        if(!file.isFile()) {
+            file = new File(dir, TableBlock.FILE_NAME);
         }
-        if (force) {
-            builder.append("\n Force: true");
+        return file.isFile();
+    }
+    private static boolean isXmlInputDirectory(File dir) {
+        File manifest = new File(dir, AndroidManifest.FILE_NAME);
+        return manifest.isFile();
+    }
+    private static boolean isJsonInputDirectory(File dir) {
+        if (isModuleDir(dir)) {
+            return true;
         }
-        if (frameworkVersion != null) {
-            builder.append("\nFramework version: ").append(frameworkVersion);
+        File[] files = dir.listFiles();
+        if(files == null) {
+            return false;
         }
-        if (frameworks != null && frameworks.length > 0) {
-            builder.append("\nFrameworks:");
-            for (File file : frameworks) {
-                builder.append("\n           ");
-                builder.append(file);
+        for(File file:files) {
+            if(isModuleDir(file)){
+                return true;
             }
         }
-        builder.append("\n ---------------------------- ");
-        return builder.toString();
+        return false;
     }
-
-    private void parseOutput(String[] args) throws ARGException {
-        this.outputFile = null;
-        File file = parseFile(ARG_output, args);
-        if (file == null) {
-            file = getOutputApkFromInput(inputFile);
+    private static boolean isModuleDir(File dir){
+        if(!dir.isDirectory()){
+            return false;
         }
-        this.outputFile = file;
+        File file = new File(dir, AndroidManifest.FILE_NAME_JSON);
+        return file.isFile();
     }
-
-    private File getOutputApkFromInput(File file) {
-        String name = file.getName();
-        name = name + "_out.apk";
-        File dir = file.getParentFile();
-        if (dir == null) {
-            return new File(name);
+    private static File getJsonInDir(File dir) {
+        if(isModuleDir(dir)){
+            return dir;
         }
-        return new File(dir, name);
-    }
-
-    private void parseInput(String[] args) throws ARGException {
-        this.inputFile = null;
-        File file = parseFile(ARG_input, args);
-        if (file == null) {
-            throw new ARGException("Missing input directory");
+        File[] files = dir.listFiles();
+        if(files == null || files.length == 0){
+            throw new CommandException("Empty directory: %s", dir);
         }
-        if (!file.exists()) {
-            throw new ARGException("No such file/directory: " + file);
+        for(File file:files){
+            if(isModuleDir(file)){
+                return file;
+            }
         }
-        this.inputFile = file;
+        throw new CommandException("Invalid directory: '%s', missing file \"uncompressed-files.json\"", dir);
     }
-
-    public static String getHelp() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(Builder.DESCRIPTION);
-        builder.append("\nOptions:\n");
-        String[][] table = new String[][]{
-                new String[]{ARG_input, ARG_DESC_input},
-                new String[]{ARG_output, ARG_DESC_output},
-                new String[]{ARG_framework_version, ARG_DESC_framework_version},
-                new String[]{ARG_framework, ARG_DESC_framework},
-                new String[]{ARG_sig, ARG_DESC_sig},
-                new String[]{ARG_resDir, ARG_DESC_resDir}
-        };
-        StringHelper.printTwoColumns(builder, "   ", Options.PRINT_WIDTH, table);
-        builder.append("\nFlags:\n");
-        table = new String[][]{
-                new String[]{ARG_force, ARG_DESC_force},
-                new String[]{ARG_no_cache, ARG_DESC_no_cache},
-                new String[]{ARG_validate_res_dir, ARG_DESC_validate_res_dir}
-        };
-        StringHelper.printTwoColumns(builder, "   ", Options.PRINT_WIDTH, table);
-        String jar = APKEditor.getJarName();
-        builder.append("\n\nExample-1:");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Builder.ARG_SHORT).append(" ")
-                .append(ARG_input).append(" path/to/input_dir");
-        builder.append(" ").append(ARG_output).append(" path/to/out.apk");
-        builder.append("\nExample-2:");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Builder.ARG_SHORT).append(" ")
-                .append(ARG_input).append(" path/to/input_dir");
-
-        builder.append("\nExample-3 (restore signatures):");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Builder.ARG_SHORT)
-                .append(" ").append(ARG_type).append(" ").append(TYPE_SIG)
-                .append(" ").append(ARG_input).append(" path/to/input.apk")
-                .append(" ").append(ARG_sig).append(" path/to/signatures_dir");
-
-        builder.append("\nExample-4: (framework)");
-        builder.append("\n   java -jar ").append(jar).append(" ").append(Builder.ARG_SHORT).append(" ")
-                .append(ARG_input).append(" input_dir");
-        builder.append(" ").append(ARG_framework).append(" framework-res.apk");
-        builder.append(" ").append(ARG_framework).append(" platforms/android-32/android.jar");
-
-        return builder.toString();
-    }
-
-    private static final String ARG_no_cache = "-no-cache";
-    private static final String ARG_DESC_no_cache = "ignore built cache .dex files";
 }
