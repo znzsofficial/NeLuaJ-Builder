@@ -2,8 +2,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com/)
-[![Min SDK](https://img.shields.io/badge/Min%20SDK-24-orange.svg)]()
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2+-purple.svg)]()
+[![Min SDK](https://img.shields.io/badge/Min%20SDK-26-orange.svg)]()
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4+-purple.svg)]()
 
 **APK Build Tool for [NeLuaJ+](https://github.com/znzsofficial/NeLuaJ) Projects**
 
@@ -47,7 +47,7 @@ NeLuaJ+ (IDE)          NeLuaJ+ Builder
 
 ### Requirements
 
-- Android 7.0+ (API 24)
+- Android 8.0+ (API 26)
 - [NeLuaJ+](https://github.com/znzsofficial/NeLuaJ) installed as the base app
 - Storage permission for reading projects from `/sdcard/LuaJ/Projects/`
 
@@ -75,6 +75,10 @@ app/src/main/java/com/nekolaska/
 ├── utils/          # CrashHandler, Toaster, PermissionHelper
 └── view/           # Custom views
 ```
+
+### Maintainer Documentation
+
+See [docs/BuilderMaintenance.md](docs/BuilderMaintenance.md) for the cross-app protocol, `init.lua` safety model, build workspace, signing key export, APK installation flow, and verification checklist.
 
 ### License
 
@@ -128,7 +132,7 @@ NeLuaJ+ (编辑器)        NeLuaJ+ Builder (打包器)
 
 ### 使用要求
 
-- Android 7.0+（API 24）
+- Android 8.0+（API 26）
 - 已安装 [NeLuaJ+](https://github.com/znzsofficial/NeLuaJ) 作为基础应用
 - 存储权限（用于读取 `/sdcard/LuaJ/Projects/` 中的项目）
 
@@ -141,6 +145,10 @@ cd NeLuaJ-Builder
 ```
 
 输出 APK 位于：`app/build/outputs/apk/release/`
+
+### 维护文档
+
+后续修改 Builder 前请阅读 [docs/BuilderMaintenance.md](docs/BuilderMaintenance.md)，其中记录了跨应用协议、`init.lua` 安全边界、构建 workspace、签名文件导出、APK 安装流程和验证清单。
 
 ### 许可证
 
