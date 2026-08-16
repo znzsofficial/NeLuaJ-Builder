@@ -24,12 +24,18 @@ object ManifestReplacer2 {
         }
 
         val attributePattern = Regex(patternString, RegexOption.IGNORE_CASE)
+        val escapedValue = replacementValue
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
 
         // 使用带 lambda 的 replace，这样 replacementValue 就是一个普通的字符串，不会被解释
         return attributePattern.replace(inputText) { matchResult ->
             val group1 = matchResult.groupValues[1]
             val group3 = matchResult.groupValues[3]
-            "$group1$replacementValue$group3"
+            "$group1$escapedValue$group3"
         }
     }
 

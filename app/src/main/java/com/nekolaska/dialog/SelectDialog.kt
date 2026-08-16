@@ -17,6 +17,10 @@ class SelectDialog(
     resume: () -> Unit,
     onOk: (TreeNode<FileNode>) -> Unit
 ) {
+    private var completed = false
+    private val dialog: androidx.appcompat.app.AlertDialog
+    private val onComplete = resume
+
     init {
         val binding = DialogSelectBinding.inflate(LayoutInflater.from(context))
 
@@ -24,21 +28,22 @@ class SelectDialog(
         node.isExpanded = true
         binding.tree.setRoots(listOf(node))
 
-        val dialog = MaterialAlertDialogBuilder(context)
+        dialog = MaterialAlertDialogBuilder(context)
             .setTitle(context.getString(R.string.select_file))
             .setView(binding.root)
             .setCancelable(true)
-            .setOnCancelListener { resume() }
+            .setOnCancelListener { complete() }
             .create()
 
         binding.btnOk.setOnClickListener {
-            onOk(node)
+            runCatching { onOk(node) }
+                .onFailure { it.printStackTrace() }
             dialog.dismiss()
-            resume()
+            complete()
         }
         binding.btnCancel.setOnClickListener {
             dialog.dismiss()
-            resume()
+            complete()
         }
 
         dialog.show()
@@ -46,5 +51,15 @@ class SelectDialog(
             WindowManager.LayoutParams.MATCH_PARENT,
             (context.resources.displayMetrics.heightPixels * 0.75).toInt()
         )
+    }
+
+    fun dismiss() {
+        dialog.dismiss()
+    }
+
+    private fun complete() {
+        if (completed) return
+        completed = true
+        onComplete()
     }
 }

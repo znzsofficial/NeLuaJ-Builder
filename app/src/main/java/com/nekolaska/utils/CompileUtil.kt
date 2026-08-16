@@ -1,5 +1,6 @@
 package com.nekolaska.utils
 
+import com.nekolaska.ktx.io.replaceWith
 import org.luaj.LuaClosure
 import org.luaj.compiler.DumpState
 import org.luaj.lib.jse.JsePlatform
@@ -26,8 +27,7 @@ object CompileUtil {
         val tempFile = File(input.parent, "${input.name}.tmp")
         try {
             tempFile.writeBytes(bytecode)
-            input.delete()
-            tempFile.renameTo(input)
+            input.replaceWith(tempFile)
         } catch (e: Exception) {
             tempFile.delete() // 清理临时文件
             throw e

@@ -37,7 +37,7 @@ class NeedPermissionFragment : ProviderFragment() {
         }
         binding.nextButton.onClick {
             activity<MainActivity> {
-                setFragment(ProjectListFragment())
+                if (havePermission()) setFragment(ProjectListFragment())
             }
         }
     }

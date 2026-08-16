@@ -18,4 +18,9 @@
         android:orderInCategory="3"
         android:title="@string/sign_config"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_export_signing_key"
+        android:orderInCategory="4"
+        android:title="@string/sign_export_key"
+        app:showAsAction="never" />
 </menu>

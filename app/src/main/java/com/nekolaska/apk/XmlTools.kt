@@ -6,6 +6,7 @@ import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
+import javax.xml.XMLConstants
 import org.w3c.dom.Element
 
 /**
@@ -19,6 +20,11 @@ fun replaceAppName(xmlFile: File, newAppName: String): Boolean {
     try {
         // 1. 创建 DOM 解析器工厂和解析器
         val docFactory = DocumentBuilderFactory.newInstance()
+        docFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        docFactory.setFeature("http://xml.org/sax/features/external-general-entities", false)
+        docFactory.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        docFactory.isXIncludeAware = false
+        docFactory.setExpandEntityReferences(false)
         val docBuilder = docFactory.newDocumentBuilder()
 
         // 2. 解析 XML 文件
@@ -49,6 +55,7 @@ fun replaceAppName(xmlFile: File, newAppName: String): Boolean {
 
         // 5. 将修改后的内容写回文件
         val transformerFactory = TransformerFactory.newInstance()
+        transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
         val transformer = transformerFactory.newTransformer()
 
         // 设置输出属性以保持良好的格式
