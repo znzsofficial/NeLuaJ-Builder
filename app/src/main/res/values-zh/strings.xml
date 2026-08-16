@@ -5,6 +5,14 @@
     <string name="next">下一步</string>
     <string name="file_icon">文件图标</string>
     <string name="error_no_init_lua">未找到init.lua文件</string>
+    <string name="error_project_not_found">未找到项目目录</string>
+    <string name="error_invalid_config">项目配置无效</string>
+    <string name="no_permissions">无权限</string>
+    <string name="error_required">必填</string>
+    <string name="error_invalid_app_name">名称不能包含路径分隔符</string>
+    <string name="error_invalid_package">包名格式无效</string>
+    <string name="error_positive_number">请输入正整数</string>
+    <string name="error_sdk_order">最低 SDK 不能高于目标 SDK</string>
     <string name="app_icon">应用图标</string>
     <string name="not_found">未找到</string>
     <string name="config_name">应用名称：</string>
@@ -41,6 +49,8 @@
     <string name="delete_class">选择并移除 Java 类</string>
     <string name="save_to">已保存到：</string>
     <string name="install">安装</string>
+    <string name="install_failed">无法打开 APK 安装程序</string>
+    <string name="install_permission_required">请允许本应用安装未知应用后重试</string>
     <string name="build_success">打包成功</string>
     <string name="keep_dex_opt">保留预编译 DEX 缓存</string>
     <string name="ask_clear_cache">确定要清除缓存吗？</string>
@@ -78,6 +88,9 @@
     <string name="sign_country">国家/地区</string>
     <string name="sign_validity_years">有效期（年）</string>
     <string name="sign_regenerate_key">重新生成签名密钥</string>
-    <string name="sign_key_regenerated">签名密钥已重新生成</string>
+    <string name="sign_key_regenerated">签名密钥已重置，将在签名或导出时重新生成</string>
     <string name="sign_saved">签名配置已保存</string>
+    <string name="sign_export_key">导出签名文件</string>
+    <string name="sign_export_success">签名文件导出成功</string>
+    <string name="sign_export_failed">签名文件导出失败</string>
 </resources>

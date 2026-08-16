@@ -20,7 +20,6 @@ import com.nekolaska.ktx.dialog.negativeButton
 import com.nekolaska.ktx.dialog.positiveButton
 import com.nekolaska.ktx.io.getChild
 import com.nekolaska.ktx.value.appendStyled
-import com.nekolaska.ktx.value.appendStyledLine
 import com.nekolaska.ktx.view.buildStyledText
 import com.nekolaska.ktx.view.enableScrollMovement
 import com.nekolaska.ktx.view.onClick
@@ -115,19 +114,29 @@ class ProjectDetailFragment : ProviderFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // 读取 init.lua 文件
-        config = getConfigFromFile()
+        val loadedConfig = runCatching { getConfigFromFile() }.getOrNull()
+        if (loadedConfig == null) {
+            Toaster.instance.show(R.string.error_invalid_config.strRes())
+            parentFragmentManager.popBackStack()
+            return
+        }
+        config = loadedConfig
         val configUtil = PermissionHelper.instance
         fun updatePermissionText() = binding.appPermission.buildStyledText {
             val permissionList = config.userPermission
-            permissionList.forEachIndexed { index, item ->
-                appendLine(item)
-                appendStyledLine(
-                    configUtil.getName("android.permission.$item"),
-                    colorPrimary
-                )
+            if (permissionList.isEmpty()) {
+                append(R.string.no_permissions.strRes())
+            } else {
+                permissionList.forEachIndexed { index, item ->
+                    if (index > 0) appendLine()
+                    append(item)
+                    appendLine()
+                    appendStyled(
+                        configUtil.getName("android.permission.$item"),
+                        colorPrimary
+                    )
+                }
             }
-            // 删除最后的换行符
-            toString().let { delete(it.length - 1, it.length) }
         }
         // 标题
         binding.title.text = project.file.name
@@ -156,17 +165,32 @@ class ProjectDetailFragment : ProviderFragment() {
 
         binding.buildButton.onClick {
             activity<MainActivity> {
-                if (config != getConfigFromFile()) {
+                val validationErrors = config.validationErrors()
+                if (validationErrors.isNotEmpty()) {
+                    alertDialog(
+                        R.string.error_invalid_config.strRes(),
+                        validationErrors.joinToString("\n")
+                    ) {
+                        positiveButton(android.R.string.ok) { it.dismiss() }
+                    }
+                    return@activity
+                }
+                val fileConfig = runCatching { getConfigFromFile() }.getOrNull()
+                if (fileConfig == null) {
+                    Toaster.instance.show(R.string.error_invalid_config.strRes())
+                    return@activity
+                }
+                if (config != fileConfig) {
                     alertDialog(
                         R.string.config_not_save.strRes(),
                         R.string.config_not_save_message.strRes()
                     ) {
                         positiveButton(R.string.save) {
-                            config.dumpToFile(project.file.getChild("init.lua")!!.absolutePath)
-                            setFragment(AppProcessFragment.newInstance(project, config))
-                        }
-                        setNeutralButton(R.string.config_not_save_continue) { _, _ ->
-                            setFragment(AppProcessFragment.newInstance(project, config))
+                            if (config.dumpToFile(project.file.getChild("init.lua")!!.absolutePath)) {
+                                setFragment(AppProcessFragment.newInstance(project, config))
+                            } else {
+                                Toaster.instance.show(R.string.save_fail.strRes())
+                            }
                         }
                         negativeButton(android.R.string.cancel) {
                             it.dismiss()

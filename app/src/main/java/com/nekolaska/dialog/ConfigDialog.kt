@@ -13,8 +13,16 @@ class ConfigDialog(context: Context, config: InitConfig, onOk: () -> Unit) :
     MaterialAlertDialogBuilder(context) {
     private val binding = DialogConfigBinding.inflate(LayoutInflater.from(context))
     private val default = config.copy()
+    private val packageNamePattern =
+        Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+")
 
     private fun loadConfig(cfg: InitConfig) = binding.apply {
+        layoutName.error = null
+        layoutPackage.error = null
+        layoutVersionName.error = null
+        layoutVersionCode.error = null
+        layoutTarget.error = null
+        layoutMin.error = null
         editName.setText(cfg.appName)
         editPackage.setText(cfg.packageName)
         editVersionName.setText(cfg.versionName)
@@ -35,13 +43,45 @@ class ConfigDialog(context: Context, config: InitConfig, onOk: () -> Unit) :
         val dialog = show()
         // 重写按钮点击，Reset 不关闭对话框
         dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setOnClickListener {
+            val appName = binding.editName.text.toString().trim()
+            val packageName = binding.editPackage.text.toString().trim()
+            val versionName = binding.editVersionName.text.toString().trim()
+            val versionCode = binding.editVersionCode.text.toString().toIntOrNull()
+            val targetSdk = binding.editTarget.text.toString().toIntOrNull()
+            val minSdk = binding.editMin.text.toString().toIntOrNull()
+
+            binding.layoutName.error = if (appName.isBlank() || appName.contains('/') || appName.contains('\\')) {
+                context.getString(R.string.error_invalid_app_name)
+            } else null
+            binding.layoutPackage.error = if (packageNamePattern.matches(packageName)) null
+            else context.getString(R.string.error_invalid_package)
+            binding.layoutVersionName.error = if (versionName.isBlank()) context.getString(R.string.error_required) else null
+            binding.layoutVersionCode.error = if (versionCode != null && versionCode > 0) null
+            else context.getString(R.string.error_positive_number)
+            binding.layoutTarget.error = if (targetSdk != null && targetSdk > 0) null
+            else context.getString(R.string.error_positive_number)
+            binding.layoutMin.error = when {
+                minSdk == null || minSdk < 1 -> context.getString(R.string.error_positive_number)
+                targetSdk != null && minSdk > targetSdk -> context.getString(R.string.error_sdk_order)
+                else -> null
+            }
+            if (listOf(
+                    binding.layoutName,
+                    binding.layoutPackage,
+                    binding.layoutVersionName,
+                    binding.layoutVersionCode,
+                    binding.layoutTarget,
+                    binding.layoutMin
+                ).any { it.error != null }
+            ) return@setOnClickListener
+
             config.apply {
-                appName = binding.editName.text.toString()
-                packageName = binding.editPackage.text.toString()
-                versionName = binding.editVersionName.text.toString()
-                versionCode = binding.editVersionCode.text.toString().toIntOrNull() ?: versionCode
-                targetSDK = binding.editTarget.text.toString().toIntOrNull() ?: targetSDK
-                minSDK = binding.editMin.text.toString().toIntOrNull() ?: minSDK
+                this.appName = appName
+                this.packageName = packageName
+                this.versionName = versionName
+                this.versionCode = versionCode!!
+                targetSDK = targetSdk!!
+                minSDK = minSdk!!
                 debuggable = binding.editDebug.isChecked
             }
             onOk()

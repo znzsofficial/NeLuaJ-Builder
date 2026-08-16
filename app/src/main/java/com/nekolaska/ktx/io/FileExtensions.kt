@@ -3,38 +3,8 @@ package com.nekolaska.ktx.io
 import okio.BufferedSink
 import okio.buffer
 import okio.sink
-import org.luaj.LuaTable
-import org.luaj.LuaValue
-import org.luaj.lib.jse.JsePlatform
 import java.io.File
-
-/**
- * 加载 Lua 文件为全局表。
- * 支持标准 Lua 赋值格式（app_name = "xxx"）和 return table 格式。
- * 兼容 UTF-8 BOM、不同换行符、尾部多余逗号等常见问题。
- */
-private fun loadLua(path: String): LuaTable {
-    val file = File(path)
-    if (!file.exists() || !file.isFile) return LuaTable.tableOf()
-
-    // 读取文件内容，去除 UTF-8 BOM
-    var content = file.readText(Charsets.UTF_8).trimStart('\uFEFF')
-
-    return runCatching {
-        // 优先尝试标准方式执行
-        val globals = JsePlatform.standardGlobals()
-        val result = globals.load(content, file.name).call()
-        // 如果脚本 return 了一个 table，直接使用
-        if (result is LuaTable) result else globals as LuaTable
-    }.recoverCatching {
-        // 如果执行失败（语法错误等），尝试包裹为 return table 格式
-        val globals = JsePlatform.standardGlobals()
-        // 尝试将 key=value 格式包裹为 table
-        val wrapped = "return {\n$content\n}"
-        val result = globals.load(wrapped, file.name).call()
-        if (result is LuaTable) result else LuaTable.tableOf()
-    }.getOrDefault(LuaTable.tableOf())
-}
+import java.io.IOException
 
 fun File.getChild(name: String): File? = resolve(name).takeIf { it.exists() }
 fun File.haveChild(name: String): Boolean = resolve(name).exists()
@@ -42,7 +12,40 @@ fun File.haveChild(name: String): Boolean = resolve(name).exists()
 val File.isLua: Boolean
     get() = name.endsWith(".lua", ignoreCase = true)
 
-fun File.loadLua() = loadLua(absolutePath)
+internal fun File.loadLuaOrThrow(): LuaConfig = LuaConfigParser.parse(this)
 
 fun File.useBufferedSink(block: (BufferedSink) -> Unit) = sink().buffer().use(block)
-fun File.mkdirsIfNotExists() = apply { if (!exists()) mkdirs() }
+fun File.mkdirsIfNotExists() = apply {
+    if (isDirectory) return@apply
+    if (exists() || !mkdirs()) {
+        throw IOException("Cannot create directory: $absolutePath")
+    }
+}
+
+fun File.replaceWith(tempFile: File) {
+    if (!tempFile.isFile) {
+        throw IOException("Replacement file does not exist: ${tempFile.absolutePath}")
+    }
+    if (tempFile.renameTo(this)) return
+    if (!exists()) {
+        throw IOException("Cannot move ${tempFile.absolutePath} to $absolutePath")
+    }
+
+    val backup = resolveSibling(".$name.${System.nanoTime()}.bak")
+    if (!renameTo(backup)) {
+        throw IOException("Cannot back up $absolutePath")
+    }
+    try {
+        if (!tempFile.renameTo(this)) {
+            throw IOException("Cannot move ${tempFile.absolutePath} to $absolutePath")
+        }
+    } catch (error: Exception) {
+        if (!exists() && !backup.renameTo(this)) {
+            error.addSuppressed(IOException("Cannot restore $absolutePath from ${backup.absolutePath}"))
+        }
+        throw error
+    }
+    backup.delete()
+}
+
+private fun File.resolveSibling(name: String) = parentFile?.resolve(name) ?: File(name)
