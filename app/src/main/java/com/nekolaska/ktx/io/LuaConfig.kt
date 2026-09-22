@@ -38,6 +38,8 @@ internal data class LuaConfig(
     internal fun hasValue(vararg keys: String): Boolean =
         keys.any { values[it]?.let { literal -> literal !is LuaLiteral.Nil } == true }
 
+    internal fun keys(): Set<String> = values.keys
+
     private fun first(vararg keys: String): LuaLiteral? =
         keys.asSequence().mapNotNull(values::get).firstOrNull { it !is LuaLiteral.Nil }
 }

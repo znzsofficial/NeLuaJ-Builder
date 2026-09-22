@@ -19,7 +19,7 @@ fun interface LogCallback {
     operator fun invoke(msg: String)
 }
 
-class Editor(context: Context, workspace: File, val logCallback: LogCallback) {
+class Editor(private val context: Context, workspace: File, val logCallback: LogCallback) {
     val cacheDir = workspace.resolve("decoded").mkdirsIfNotExists()
 
     /** 反编译缓存目录，用于跳过重复反编译 */
@@ -184,6 +184,10 @@ class Editor(context: Context, workspace: File, val logCallback: LogCallback) {
 
         logCallback("Replacing icon...")
         replaceIcon(project.file.resolve("icon.png"))
+        if (project.file.resolve("welcome.lua").isFile) {
+            logCallback("Generating welcome screen...")
+            WelcomeXml.apply(project.file, cacheDir.join("resources"))
+        }
     }
 
     fun build(apkOutputPath: String) {

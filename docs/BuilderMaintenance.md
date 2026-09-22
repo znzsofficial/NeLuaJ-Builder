@@ -128,13 +128,23 @@ Legacy `theme` 仅在值为 `Theme_NeLuaJ_*` 时作为 NeLuaJ 主题兼容字段
 1. 固化 UI 构建选项。
 2. 校验并复制已安装的 NeLuaJ+ 基础 APK；split APK 当前不支持。
 3. APKEditor 解包或恢复解包缓存。
-4. 修改 package、应用名、manifest、资源和图标。
+4. 修改 package、应用名、manifest、资源、图标，以及可选的 `welcome.lua` 启动页。
 5. 复制工程文件，按选项预编译 Lua。
 6. 可选地让用户删除反编译后的 Smali 类。
 7. 重新构建 APK。
 8. 使用 `MySigner` 签名。
 9. 将 APK 和可选 `.idsig` 成组、事务式导出到 `LuaJ/Builds`。
 10. 清理构建 workspace，并显示成功对话框。
+
+### 启动页 `welcome.lua`
+
+工程根目录可以有可选的 `welcome.lua`。没有它时，保留基础 APK 里的 `welcome.xml`。有它时，`WelcomeXml` 在替换 `icon.png` 之后生成新的窗口背景，并覆盖反编译资源中所有名为 `welcome.xml` 的文件。
+
+`WelcomeXml` 用只含 `string`、`table`、`math`、`bit32` 和 `utf8` 的 LuaJ 环境执行它，不提供 `io`、`os`、`package`、`debug`、`require` 或 Java 桥。脚本必须返回一张表，源文件不能是字节码，最大 64 KiB。
+
+简单字段是 `background`、`icon`、`icon_size`、`gravity`、`image`、`text`、`text_size`、`text_color` 和 `text_gravity`。`text` 在打包设备上用系统字体画成 PNG，再作为 bitmap 放进窗口背景；窗口背景不能放 TextView。更复杂的画面用 `layers` 数组，每层是纯色、渐变、图标、图片或文字之一，并可设置 `shape`、`corners`、`size`、`gravity` 和 `inset`。`layers` 不能和简单字段混用。颜色只能是 `#RRGGBB` 或 `#AARRGGBB`，尺寸只能是 `dp`，图片必须是工程根目录中的小写资源文件名，例如 `welcome.png`。生成的 XML 只包含 `layer-list`、`item`、`bitmap`、`shape`、`solid`、`gradient`、`corners` 和 `color`。
+
+`image` 会铺满启动页并忽略 `icon`。自定义图片和文字不会新增资源名。它们覆盖基础 APK 里 `res/drawable-nodpi/` 中已经存在的 `welcome_image.png` 和 `welcome_text.png`（各最多 4 张）。这些文件必须是 nodpi，否则系统会把无密度的 `drawable/` 当成 mdpi 再缩放一次。文字按 4 倍密度绘制，字体缩放固定为 1，图层宽高是像素除以 4 得到的 dp，不跟随打包手机的显示密度或字体大小。不要改 `public.xml`，APKEditor 会按这份声明重建资源表，错误的新 ID 会覆盖已有 drawable。`welcome.lua` 最多执行 100000 条指令。缺省背景是 `?colorSurface`，缺省图标是已经替换过的 `@drawable/icon`。
 
 ### Workspace 与缓存
 
@@ -241,6 +251,9 @@ Windows PowerShell 也可使用：
 - `InitConfigWriterTest`：精确写回、别名、注释保留、`return {}`、缺失逗号。
 - `AppProcessFragmentTest`：APK 文件名清洗与 UTF-8 长度。
 - `MySignerTest`：JKS 完整导出和空文件拒绝。
+- `WelcomeXmlTest`：沙箱执行 `welcome.lua`、简单字段和 `layers`。
+
+本地单元测试会给 JVM 加上 `-noverify`，因为 `luajpp.jar` 缺少 `StackMapTable`。这只影响桌面测试，不影响 Android 构建。
 
 涉及主应用调用端时，在 `NeLuaJ+` 仓库运行：
 

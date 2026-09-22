@@ -15,8 +15,8 @@ android {
         applicationId = "com.nekolaska.Builder"
         minSdk = 26
         targetSdk = 37
-        versionCode = 8
-        versionName = "1.2.0"
+        versionCode = 9
+        versionName = "1.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -52,6 +52,11 @@ android {
                 "Builder-$formattedDateTime-$ver.APK";
         }
     }
+}
+
+// The legacy Luaj++ JAR omits StackMapTable entries. ART accepts it; local unit tests do not.
+tasks.withType<Test>().configureEach {
+    jvmArgs("-noverify")
 }
 
 dependencies {
