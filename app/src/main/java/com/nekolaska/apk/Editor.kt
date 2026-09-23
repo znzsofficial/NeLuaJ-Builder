@@ -26,40 +26,58 @@ class Editor(private val context: Context, workspace: File, val logCallback: Log
     private val decompileCache = BuildWorkspace.decompileCache(context)
     private val decompileCacheMarker = BuildWorkspace.decompileCacheMarker(context)
 
+    private class DecompileMarker(
+        val path: String,
+        val size: Long,
+        val modified: Long?,
+        val hash: String,
+        val deDex: Boolean,
+        val smali: String?
+    )
+
     /**
-     * 检查反编译缓存是否可用。
-     * 通过记录源 APK 的路径、大小和内容摘要来判断缓存是否有效。
+     * 新 marker：路径、大小、修改时间、摘要、deDex、smali 开关。
+     * 旧 marker 没有修改时间，摘要仍在第 3 行。
      */
-    private fun isDecompileCacheValid(
-        sourceApkPath: String,
-        apkSize: Long,
-        apkHash: String,
-        deDex: Boolean
-    ): Boolean {
+    private fun readDecompileMarker(): DecompileMarker? {
         if (!decompileCacheMarker.isFile ||
             !decompileCache.resolve("AndroidManifest.xml").isFile
-        ) return false
+        ) return null
+        val lines = runCatching { decompileCacheMarker.readLines() }.getOrNull() ?: return null
+        if (lines.size < 4) return null
+        val size = lines[1].toLongOrNull() ?: return null
+        val third = lines[2]
+        val legacy = third.length == 64 && third.all { it in '0'..'9' || it in 'a'..'f' }
         return runCatching {
-            val lines = decompileCacheMarker.readLines()
-            val cachedPath = lines[0]
-            val cachedSize = lines[1].toLong()
-            val cachedHash = lines[2]
-            val cachedDeDex = lines[3].toBooleanStrict()
-            sourceApkPath == cachedPath
-                    && apkSize == cachedSize
-                    && apkHash == cachedHash
-                    && deDex == cachedDeDex
-        }.getOrDefault(false)
+            if (legacy) {
+                DecompileMarker(
+                    lines[0], size, null, third,
+                    lines[3].toBooleanStrict(),
+                    lines.getOrNull(4)
+                )
+            } else {
+                if (lines.size < 5) return@runCatching null
+                val modified = third.toLongOrNull() ?: return@runCatching null
+                DecompileMarker(
+                    lines[0], size, modified, lines[3],
+                    lines[4].toBooleanStrict(),
+                    lines.getOrNull(5)
+                )
+            }
+        }.getOrNull()
     }
 
     private fun writeDecompileCacheMarker(
         sourceApkPath: String,
         apkSize: Long,
+        apkModified: Long,
         apkHash: String,
-        deDex: Boolean
+        deDex: Boolean,
+        skipSmaliComment: Boolean,
+        skipDexDebug: Boolean
     ) {
         decompileCacheMarker.writeText(
-            "$sourceApkPath\n$apkSize\n$apkHash\n$deDex"
+            "$sourceApkPath\n$apkSize\n$apkModified\n$apkHash\n$deDex\n$skipSmaliComment,$skipDexDebug"
         )
     }
 
@@ -97,7 +115,9 @@ class Editor(private val context: Context, workspace: File, val logCallback: Log
         keepAService: Boolean,
         keepLuaService: Boolean,
         keepNotificationService: Boolean,
-        deDex: Boolean
+        deDex: Boolean,
+        skipSmaliComment: Boolean,
+        skipDexDebug: Boolean
     ) {
         val apkFile = File(apkInputPath)
         if (!apkFile.isFile) {
@@ -105,11 +125,27 @@ class Editor(private val context: Context, workspace: File, val logCallback: Log
         }
         val sourceApkPath = File(sourceApkIdentity).canonicalPath
         val apkSize = apkFile.length()
-        val apkHash = sha256(apkFile)
+        val apkModified = apkFile.lastModified()
+        val marker = readDecompileMarker()
+        val sameFile = marker != null &&
+                marker.path == sourceApkPath &&
+                marker.size == apkSize
+        val identityFast = sameFile && marker.modified == apkModified
+        val apkHash = if (identityFast) marker.hash else sha256(apkFile)
+        val cacheValid = sameFile &&
+                marker.hash == apkHash &&
+                marker.deDex == deDex &&
+                (!deDex || marker.smali == "$skipSmaliComment,$skipDexDebug")
 
-        // 检查反编译缓存：如果基础 APK 没变且 deDex 选项一致，直接复用缓存
-        if (isDecompileCacheValid(sourceApkPath, apkSize, apkHash, deDex)) {
+        if (cacheValid) {
+            if (!identityFast) {
+                writeDecompileCacheMarker(
+                    sourceApkPath, apkSize, apkModified, apkHash,
+                    deDex, skipSmaliComment, skipDexDebug
+                )
+            }
             logCallback("Restoring from cache...")
+            stripAssetsExceptDexOpt(decompileCache)
             if (cacheDir.exists() && !cacheDir.deleteRecursively()) {
                 throw IOException("Cannot clear decompile workspace: ${cacheDir.absolutePath}")
             }
@@ -120,22 +156,25 @@ class Editor(private val context: Context, workspace: File, val logCallback: Log
             logCallback("Decompiling base APK...")
             val args = mutableListOf("-i", apkInputPath, "-o", cacheDir.absolutePath, "-f")
             if (!deDex) args.add("-dex")
+            else {
+                if (skipSmaliComment) {
+                    args.add("-comment-level")
+                    args.add("off")
+                }
+                if (skipDexDebug) args.add("-no-dex-debug")
+            }
             // load-dex 0 强制逐个解码 dex，避免 SmaliDecompiler 一次性加载全部 dex 导致 OOM
             args.add("-load-dex")
             args.add("0")
             Decompiler2.execute(logCallback, *args.toTypedArray())
 
-            // 保存反编译结果到缓存
+            stripAssetsExceptDexOpt(cacheDir)
             logCallback("Caching decompiled result...")
-            decompileCacheMarker.delete()
-            if (decompileCache.exists() && !decompileCache.deleteRecursively()) {
-                throw IOException("Cannot clear old decompile cache")
-            }
-            if (!cacheDir.copyRecursively(decompileCache, overwrite = true)) {
-                decompileCache.deleteRecursively()
-                throw IOException("Cannot save decompile cache")
-            }
-            writeDecompileCacheMarker(sourceApkPath, apkSize, apkHash, deDex)
+            saveDecompileCache()
+            writeDecompileCacheMarker(
+                sourceApkPath, apkSize, apkModified, apkHash,
+                deDex, skipSmaliComment, skipDexDebug
+            )
         }
 
         logCallback("Modifying package name...")
@@ -238,6 +277,32 @@ class Editor(private val context: Context, workspace: File, val logCallback: Log
             if (!exceptDexOpt || file.name != "dexopt") {
                 file.deleteRecursively()
             }
+        }
+    }
+
+    private fun stripAssetsExceptDexOpt(decodedRoot: File) {
+        val folder = decodedRoot.join("root", "assets")
+        if (!folder.isDirectory) return
+        folder.listFiles()?.forEach { file ->
+            if (file.name != "dexopt" && !file.deleteRecursively()) {
+                throw IOException("Cannot strip cached assets: ${file.absolutePath}")
+            }
+        }
+    }
+
+    private fun saveDecompileCache() {
+        decompileCacheMarker.delete()
+        if (decompileCache.exists() && !decompileCache.deleteRecursively()) {
+            throw IOException("Cannot clear old decompile cache")
+        }
+        try {
+            if (!cacheDir.copyRecursively(decompileCache, overwrite = true)) {
+                throw IOException("Cannot save decompile cache")
+            }
+        } catch (error: IOException) {
+            decompileCache.deleteRecursively()
+            decompileCacheMarker.delete()
+            throw error
         }
     }
 
