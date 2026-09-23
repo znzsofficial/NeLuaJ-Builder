@@ -120,6 +120,9 @@ class Editor(private val context: Context, workspace: File, val logCallback: Log
             logCallback("Decompiling base APK...")
             val args = mutableListOf("-i", apkInputPath, "-o", cacheDir.absolutePath, "-f")
             if (!deDex) args.add("-dex")
+            // load-dex 0 强制逐个解码 dex，避免 SmaliDecompiler 一次性加载全部 dex 导致 OOM
+            args.add("-load-dex")
+            args.add("0")
             Decompiler2.execute(logCallback, *args.toTypedArray())
 
             // 保存反编译结果到缓存
