@@ -155,7 +155,7 @@ Legacy `theme` 仅在值为 `Theme_NeLuaJ_*` 时作为 NeLuaJ 主题兼容字段
 
 每次构建使用 `cacheDir/apk_builds/` 下的独立目录。`BuildWorkspace.mutex` 串行化 APKEditor 构建和清缓存，避免共享缓存被并发删除或覆盖。
 
-反编译缓存由基础 APK canonical path、文件大小、SHA-256 和 deDex 选项共同校验。不要再次把所有构建固定到 `cacheDir/apk_editor`。
+反编译缓存由基础 APK canonical path、文件大小、SHA-256、deDex，以及开启 deDex 时的「跳过 smali 注释 / 跳过 DEX 调试信息」共同校验。不要再次把所有构建固定到 `cacheDir/apk_editor`。
 
 APKEditor 解包/构建与 APK 签名 API 是阻塞调用，协程取消只能在阶段之间检查。修改流水线时应在耗时阶段后及导出前保留 `ensureActive()`，防止页面离开后继续签名或覆盖已有产物。
 
