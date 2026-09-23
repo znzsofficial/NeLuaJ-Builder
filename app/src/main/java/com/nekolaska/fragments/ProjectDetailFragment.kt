@@ -5,6 +5,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.content.res.ColorStateList
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import coil3.load
+import com.google.android.material.chip.Chip
 import com.google.android.material.color.MaterialColors
 import com.nekolaska.Builder.R
 import com.nekolaska.Builder.databinding.FragmentDetailBinding
@@ -15,13 +21,9 @@ import com.nekolaska.data.ProjectItem
 import com.nekolaska.dialog.ConfigDialog
 import com.nekolaska.dialog.PermissionDialog
 import com.nekolaska.ktx.context.alertDialog
-import com.nekolaska.ktx.context.imageRequestOf
 import com.nekolaska.ktx.dialog.negativeButton
 import com.nekolaska.ktx.dialog.positiveButton
 import com.nekolaska.ktx.io.getChild
-import com.nekolaska.ktx.value.appendStyled
-import com.nekolaska.ktx.view.buildStyledText
-import com.nekolaska.ktx.view.enableScrollMovement
 import com.nekolaska.ktx.view.onClick
 import com.nekolaska.utils.PermissionHelper
 import com.nekolaska.utils.Toaster
@@ -67,45 +69,43 @@ class ProjectDetailFragment : ProviderFragment() {
         )
     }
 
-    fun readConfig() {
-        binding.appConfig.buildStyledText {
-            appendStyled(R.string.config_name.strRes(), colorPrimary)
-            appendLine(config.appName)
-
-            appendStyled(R.string.config_package.strRes(), colorPrimary)
-            appendLine(config.packageName)
-
-            appendStyled(R.string.config_versionName.strRes(), colorPrimary)
-            appendLine(config.versionName)
-
-            appendStyled(R.string.config_versionCode.strRes(), colorPrimary)
-            appendLine(config.versionCode.toString())
-
-            appendStyled(R.string.config_targetSdk.strRes(), colorPrimary)
-            appendLine(config.targetSDK.toString())
-
-            appendStyled(R.string.config_minSdk.strRes(), colorPrimary)
-            appendLine(config.minSDK.toString())
-
-            appendStyled(R.string.config_debug.strRes(), colorPrimary)
-            append(config.debuggable.toString())
-        }
+    private fun refreshConfigViews() {
+        binding.valAppName.text = config.appName.ifBlank { project.file.name }
+        binding.valPackageName.text = config.packageName
+        binding.valVersion.text = "${config.versionName} (${config.versionCode})"
+        binding.valSdk.text = "Min: ${config.minSDK}  |  Target: ${config.targetSDK}"
+        binding.valDebug.text = config.debuggable.toString()
     }
 
-    fun loadProjectIcon() {
-        imageLoader.enqueue(
-            requireContext().imageRequestOf(
-                project.iconPath ?: R.drawable.icon
-            ) {
-                // 转换 48dp 为像素
-                val size = 48f.dp.toInt()
-
-                // 设置 drawable 大小
-                it.setBounds(0, 0, size, size)
-                // 设置 drawable 到 TextView
-                binding.title.setCompoundDrawables(it, null, null, null)
+    private fun refreshPermissions() {
+        val permissionList = config.userPermission
+        val chipGroup = binding.permissionChipGroup
+        chipGroup.removeAllViews()
+        if (permissionList.isEmpty()) {
+            binding.noPermissionHint.visibility = View.VISIBLE
+            chipGroup.visibility = View.GONE
+        } else {
+            binding.noPermissionHint.visibility = View.GONE
+            chipGroup.visibility = View.VISIBLE
+            val helper = PermissionHelper.instance
+            permissionList.forEach { perm ->
+                val chip = Chip(requireContext()).apply {
+                    val friendlyName = helper.getName("android.permission.$perm")
+                    text = if (friendlyName.isNotBlank() && friendlyName != perm) "$friendlyName ($perm)" else perm
+                    isCheckable = false
+                    isClickable = false
+                    setChipBackgroundColorResource(android.R.color.transparent)
+                    chipStrokeWidth = 1f.dp
+                    chipStrokeColor = ColorStateList.valueOf(
+                        MaterialColors.getColor(this, com.google.android.material.R.attr.colorOutline)
+                    )
+                    shapeAppearanceModel = shapeAppearanceModel.toBuilder()
+                        .setAllCornerSizes(12f.dp)
+                        .build()
+                }
+                chipGroup.addView(chip)
             }
-        )
+        }
     }
 
     private fun getConfigFromFile() =
@@ -113,7 +113,6 @@ class ProjectDetailFragment : ProviderFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // 读取 init.lua 文件
         val loadedConfig = runCatching { getConfigFromFile() }.getOrNull()
         if (loadedConfig == null) {
             Toaster.instance.show(R.string.error_invalid_config.strRes())
@@ -121,48 +120,40 @@ class ProjectDetailFragment : ProviderFragment() {
             return
         }
         config = loadedConfig
-        val configUtil = PermissionHelper.instance
-        fun updatePermissionText() = binding.appPermission.buildStyledText {
-            val permissionList = config.userPermission
-            if (permissionList.isEmpty()) {
-                append(R.string.no_permissions.strRes())
-            } else {
-                permissionList.forEachIndexed { index, item ->
-                    if (index > 0) appendLine()
-                    append(item)
-                    appendLine()
-                    appendStyled(
-                        configUtil.getName("android.permission.$item"),
-                        colorPrimary
-                    )
-                }
-            }
-        }
-        // 标题
-        binding.title.text = project.file.name
-        binding.appPermission.enableScrollMovement()
-        binding.permissionButton.onClick {
-            PermissionDialog(requireActivity(), config) {
-                updatePermissionText()
-            }
-        }
-        binding.configTitle.onClick {
+        applyBottomBarInsets()
+
+        // 顶部项目卡片
+        binding.projectDirName.text = project.file.name
+        binding.projectPath.text = project.file.absolutePath
+        project.iconPath?.let { binding.projectIcon.load(it) }
+
+        // 编辑配置入口
+        val openConfigEditor = {
             ConfigDialog(requireActivity(), config) {
-                readConfig()
+                refreshConfigViews()
             }
         }
+        binding.btnEditConfig.onClick { openConfigEditor() }
+
+        // 编辑权限入口
+        val openPermissionEditor = {
+            PermissionDialog(requireActivity(), config) {
+                refreshPermissions()
+            }
+        }
+        binding.btnEditPermissions.onClick { openPermissionEditor() }
+
+        // 保存文件
         binding.saveButton.onClick {
+            val file = project.file.getChild("init.lua")!!
+            val ok = config.dumpToFile(file.absolutePath)
             Toaster.instance.show(
-                if (config.dumpToFile(project.file.getChild("init.lua")!!.absolutePath)) R.string.save_success.strRes()
+                if (ok) R.string.save_success.strRes()
                 else R.string.save_fail.strRes()
             )
         }
 
-        // 加载图标
-        loadProjectIcon()
-        readConfig()
-        updatePermissionText()
-
+        // 下一步：前往打包配置
         binding.buildButton.onClick {
             activity<MainActivity> {
                 val validationErrors = config.validationErrors()
@@ -196,9 +187,26 @@ class ProjectDetailFragment : ProviderFragment() {
                             it.dismiss()
                         }
                     }
-                } else setFragment(AppProcessFragment.newInstance(project, config))
+                } else {
+                    setFragment(AppProcessFragment.newInstance(project, config))
+                }
             }
         }
+
+        refreshConfigViews()
+        refreshPermissions()
+    }
+
+    private fun applyBottomBarInsets() {
+        val scrollPadding = binding.contentScroll.paddingBottom
+        val barPadding = binding.bottomBar.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.bottomBar) { bar, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            bar.updatePadding(bottom = barPadding + bars.bottom)
+            binding.contentScroll.updatePadding(bottom = scrollPadding + bars.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.bottomBar)
     }
 
     override fun onDestroyView() {
